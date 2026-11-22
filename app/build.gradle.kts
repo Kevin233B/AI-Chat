@@ -1,10 +1,12 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
-val signingProps = java.util.Properties()
+val signingProps = Properties()
 val signingFile = rootProject.file("signing.properties")
 if (signingFile.exists()) {
     signingFile.inputStream().use { signingProps.load(it) }
