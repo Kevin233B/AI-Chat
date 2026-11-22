@@ -126,16 +126,16 @@ fun CodePreviewDialog(code: String, lang: String, onDismiss: () -> Unit) {
     } else {
         code
     }
-    val webView = remember {
-        WebView(context).apply {
-            settings.javaScriptEnabled = true
-            settings.domStorageEnabled = false
-            settings.allowFileAccess = false
-            settings.allowContentAccess = false
-            settings.loadsImagesAutomatically = true
-            setBackgroundColor(android.graphics.Color.WHITE)
-            webViewClient = WebViewClient()
-        }
+    val webView = remember(context) {
+        val view = WebView(context)
+        view.settings.javaScriptEnabled = true
+        view.settings.domStorageEnabled = false
+        view.settings.allowFileAccess = false
+        view.settings.allowContentAccess = false
+        view.settings.loadsImagesAutomatically = true
+        view.setBackgroundColor(android.graphics.Color.WHITE)
+        view.webViewClient = WebViewClient()
+        view
     }
     DisposableEffect(Unit) {
         onDispose { webView.destroy() }
