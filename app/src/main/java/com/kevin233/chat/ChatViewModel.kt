@@ -8,7 +8,6 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.kevin233.chat.data.Agent
-import com.kevin233.chat.data.Agents
 import com.kevin233.chat.data.ApiConfig
 import com.kevin233.chat.data.ChatSearch
 import com.kevin233.chat.data.Conversation
@@ -97,7 +96,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         get() = conversations.sortedByDescending { it.updatedAt }
 
     val agents: List<Agent>
-        get() = Agents.builtin + settings.customAgents
+        get() = settings.customAgents
 
     val skills: List<Skill>
         get() = Skills.builtin + settings.customSkills
@@ -168,7 +167,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             reasoning = agent.reasoning,
             agentId = agent.id,
             agentName = agent.name,
-            agentEmoji = agent.emoji,
+            agentAvatar = agent.avatarPath,
             modelKey = activeConfig?.cacheFingerprint() ?: ""
         )
         conversations = listOf(conv) + conversations

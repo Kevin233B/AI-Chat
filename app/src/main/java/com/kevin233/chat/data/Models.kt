@@ -42,7 +42,8 @@ data class Conversation(
     val reasoning: Int = 0,
     val agentId: String = "",
     val agentName: String = "",
-    val agentEmoji: String = ""
+    val agentEmoji: String = "",
+    val agentAvatar: String = ""
 ) {
     val hitTokens: Int get() = messages.sumOf { it.cacheHit }
     val missTokens: Int get() = messages.sumOf { it.cacheMiss }
@@ -57,7 +58,8 @@ data class Agent(
     val prompt: String = "",
     val webSearch: Boolean = false,
     val reasoning: Int = 0,
-    val builtin: Boolean = false
+    val builtin: Boolean = false,
+    val avatarPath: String = ""
 )
 
 data class Skill(

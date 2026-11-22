@@ -83,6 +83,7 @@ class Store(context: Context) {
                 put("prompt", agent.prompt)
                 put("webSearch", agent.webSearch)
                 put("reasoning", agent.reasoning)
+                put("avatarPath", agent.avatarPath)
             })
         }
         o.put("customAgents", agents)
@@ -154,7 +155,8 @@ class Store(context: Context) {
                             tagline = a.optString("tagline"),
                             prompt = a.optString("prompt"),
                             webSearch = a.optBoolean("webSearch", false),
-                            reasoning = a.optInt("reasoning", 0)
+                            reasoning = a.optInt("reasoning", 0),
+                            avatarPath = a.optString("avatarPath")
                         )
                     )
                 }
@@ -428,6 +430,7 @@ class Store(context: Context) {
         put("agentId", c.agentId)
         put("agentName", c.agentName)
         put("agentEmoji", c.agentEmoji)
+        put("agentAvatar", c.agentAvatar)
         val arr = JSONArray()
         c.messages.forEach { arr.put(msgToJson(it)) }
         put("messages", arr)
@@ -452,7 +455,8 @@ class Store(context: Context) {
             reasoning = o.optInt("reasoning", 0),
             agentId = o.optString("agentId"),
             agentName = o.optString("agentName"),
-            agentEmoji = o.optString("agentEmoji")
+            agentEmoji = o.optString("agentEmoji"),
+            agentAvatar = o.optString("agentAvatar")
         )
     }
 }

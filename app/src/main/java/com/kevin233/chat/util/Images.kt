@@ -67,6 +67,37 @@ object Images {
         return "data:image/jpeg;base64," + Base64.encodeToString(bytes, Base64.NO_WRAP)
     }
 
+    fun loadForCrop(context: Context, uri: Uri): Bitmap? = decodeWallpaper(context, uri)
+
+    fun saveAvatar(context: Context, bitmap: Bitmap): String? {
+        return try {
+            val dir = File(context.filesDir, "avatars").apply { mkdirs() }
+            val file = File(dir, "avatar-" + System.currentTimeMillis() + ".jpg")
+            FileOutputStream(file).use { bitmap.compress(Bitmap.CompressFormat.JPEG, 92, it) }
+            file.absolutePath
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun loadAvatar(path: String): Bitmap? {
+        if (path.isBlank()) return null
+        cache.get(path)?.let { return it }
+        return try {
+            if (!File(path).exists()) return null
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(path, bounds)
+            var sample = 1
+            while (maxOf(bounds.outWidth, bounds.outHeight) / sample > 512) sample *= 2
+            val options = BitmapFactory.Options().apply { inSampleSize = sample }
+            val bitmap = BitmapFactory.decodeFile(path, options) ?: return null
+            cache.put(path, bitmap)
+            bitmap
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     fun saveWallpaper(context: Context, uri: Uri): String? {
         val bitmap = decodeWallpaper(context, uri) ?: return null
         return try {

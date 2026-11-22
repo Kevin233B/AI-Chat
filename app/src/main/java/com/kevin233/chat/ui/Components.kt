@@ -146,7 +146,7 @@ fun SettingRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
-            .padding(vertical = 11.dp),
+            .padding(horizontal = 18.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -210,7 +210,7 @@ fun PillChip(
                 RoundedCornerShape(50)
             )
             .clickable { onClick() }
-            .padding(horizontal = 15.dp, vertical = 9.dp)
+            .padding(horizontal = 16.dp, vertical = 10.dp)
     ) {
         Text(
             text = text,

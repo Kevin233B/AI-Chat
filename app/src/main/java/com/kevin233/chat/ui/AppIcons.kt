@@ -1,14 +1,22 @@
 package com.kevin233.chat.ui
 
 import androidx.compose.foundation.Canvas
+import android.graphics.Bitmap
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,12 +28,17 @@ import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kevin233.chat.util.Images
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 val CacheStack: ImageVector by lazy {
     ImageVector.Builder(
@@ -97,6 +110,39 @@ fun AppLogo(size: Dp = 40.dp, radius: Dp = 13.dp) {
                     center = Offset(w * x, h * 0.38f)
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun AgentAvatar(path: String, name: String, size: Dp) {
+    val palette = pal
+    var bitmap by remember(path) { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(path) {
+        if (path.isNotBlank()) {
+            bitmap = withContext(Dispatchers.IO) { Images.loadAvatar(path) }
+        }
+    }
+    val initial = name.trim().take(1).ifBlank { "A" }
+    Box(
+        Modifier.size(size).clip(CircleShape).background(palette.accentSoft),
+        contentAlignment = Alignment.Center
+    ) {
+        val image = bitmap
+        if (image != null) {
+            Image(
+                bitmap = image.asImageBitmap(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Text(
+                initial,
+                color = palette.accentText,
+                fontSize = (size.value * 0.4f).sp,
+                fontWeight = FontWeight.SemiBold
+            )
         }
     }
 }

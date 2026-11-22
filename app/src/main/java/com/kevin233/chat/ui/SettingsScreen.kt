@@ -167,9 +167,7 @@ private fun SettingsHome(vm: ChatViewModel, onOpen: (SettingsPage) -> Unit) {
                     border = androidx.compose.foundation.BorderStroke(1.dp, palette.border),
                     modifier = Modifier.fillMaxWidth().clickable { onOpen(SettingsPage.API) }
                 ) {
-                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        InitialBadge(config?.name ?: "AI", 46.dp)
-                        Spacer(Modifier.width(13.dp))
+                    Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(
                                 config?.name?.ifBlank { "自定义模型" } ?: "还没连接模型",
@@ -204,7 +202,7 @@ private fun SettingsHome(vm: ChatViewModel, onOpen: (SettingsPage) -> Unit) {
                     shape = RoundedCornerShape(20.dp),
                     modifier = Modifier.fillMaxWidth().clickable { onOpen(SettingsPage.CACHE) }
                 ) {
-                    Column(Modifier.padding(16.dp)) {
+                    Column(Modifier.padding(18.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(CacheStack, null, tint = palette.accent, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(7.dp))
@@ -351,7 +349,7 @@ private fun ApiSettingsPage(vm: ChatViewModel, onBack: () -> Unit) {
                         border = androidx.compose.foundation.BorderStroke(1.dp, palette.border),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(Modifier.padding(16.dp)) {
+                        Column(Modifier.padding(18.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 InitialBadge(active.name, 46.dp)
                                 Spacer(Modifier.width(12.dp))
@@ -642,7 +640,7 @@ private fun GenerationSettingsPage(vm: ChatViewModel, onBack: () -> Unit) {
         PageBody {
             item {
                 Surface(color = palette.surface, shape = RoundedCornerShape(20.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
-                    Column(Modifier.padding(16.dp)) {
+                    Column(Modifier.padding(18.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Rounded.Psychology, null, tint = palette.accent, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(7.dp))
@@ -684,7 +682,7 @@ private fun GenerationSettingsPage(vm: ChatViewModel, onBack: () -> Unit) {
 
             item {
                 Surface(color = palette.surface, shape = RoundedCornerShape(20.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
-                    Column(Modifier.padding(16.dp)) {
+                    Column(Modifier.padding(18.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("回答风格", style = MaterialTheme.typography.bodyLarge, color = palette.text, modifier = Modifier.weight(1f))
                             Text(temperatureLabel(temperature), style = MaterialTheme.typography.labelMedium, color = palette.accent)
@@ -708,7 +706,7 @@ private fun GenerationSettingsPage(vm: ChatViewModel, onBack: () -> Unit) {
 
             item {
                 Surface(color = palette.surface, shape = RoundedCornerShape(20.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
-                    Column(Modifier.padding(16.dp)) {
+                    Column(Modifier.padding(18.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("最长回复", style = MaterialTheme.typography.bodyLarge, color = palette.text, modifier = Modifier.weight(1f))
                             Text("$maxTokens token", style = MaterialTheme.typography.labelMedium, color = palette.accent)
@@ -763,7 +761,7 @@ private fun GenerationSettingsPage(vm: ChatViewModel, onBack: () -> Unit) {
 
             item {
                 Surface(color = palette.surface, shape = RoundedCornerShape(20.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
-                    Column(Modifier.padding(16.dp)) {
+                    Column(Modifier.padding(18.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Rounded.Public, null, tint = palette.accent, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
@@ -1268,7 +1266,7 @@ private fun StatusDot(text: String, ok: Boolean) {
     val palette = pal
     Row(
         Modifier.clip(CircleShape).background(if (ok) palette.ok.copy(alpha = 0.11f) else palette.warn.copy(alpha = 0.12f))
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = 10.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(Modifier.size(6.dp).clip(CircleShape).background(if (ok) palette.ok else palette.warn))

@@ -282,6 +282,7 @@ private fun ChatPane(
                             wide = wide,
                             highlight = msg.id == vm.highlightedMessageId,
                             agentName = conv?.agentName.orEmpty(),
+                            agentAvatar = conv?.agentAvatar.orEmpty(),
                             searching = vm.searching,
                             onImageClick = { previewImage = it }
                         )
@@ -419,8 +420,6 @@ private fun Sidebar(
             Modifier.padding(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AppLogo(34.dp, 10.dp)
-            Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text("AI Chat", style = MaterialTheme.typography.titleLarge, color = palette.text)
             }
@@ -673,7 +672,7 @@ private fun EmptyState(vm: ChatViewModel, modifier: Modifier = Modifier) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (agentName.isNotBlank()) {
-                InitialBadge(agentName, 66.dp)
+                AgentAvatar(conv?.agentAvatar.orEmpty(), agentName, 66.dp)
             }
             Spacer(Modifier.height(18.dp))
             Text(
@@ -744,6 +743,7 @@ private fun MessageRow(
     wide: Boolean,
     highlight: Boolean = false,
     agentName: String = "",
+    agentAvatar: String = "",
     searching: Boolean = false,
     onImageClick: (String) -> Unit = {}
 ) {
@@ -834,7 +834,7 @@ private fun MessageRow(
     Column(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (agentName.isNotBlank()) {
-                InitialBadge(agentName, 26.dp)
+                AgentAvatar(agentAvatar, agentName, 26.dp)
                 Spacer(Modifier.width(9.dp))
             }
             Text(agentName.ifBlank { "AI Chat" }, style = MaterialTheme.typography.labelMedium, color = palette.textSub)
@@ -1253,7 +1253,7 @@ private fun ToolChip(
                 RoundedCornerShape(12.dp)
             )
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
