@@ -264,7 +264,11 @@ private fun SettingsHome(vm: ChatViewModel, onOpen: (SettingsPage) -> Unit) {
             item { GroupLabel("偏好") }
             item {
                 GroupCard {
-                    NavRow(Icons.Rounded.Groups, "智能体与人设", "${vm.agents.size} 个角色，点一个开始聊") {
+                    NavRow(
+                        Icons.Rounded.Groups,
+                        "智能体与技能",
+                        "${vm.agents.size} 个角色，${vm.skills.size} 个技能"
+                    ) {
                         vm.screen = Screen.AGENTS
                     }
                     RowDivider()
@@ -758,6 +762,44 @@ private fun GenerationSettingsPage(vm: ChatViewModel, onBack: () -> Unit) {
             }
 
             item {
+                Surface(color = palette.surface, shape = RoundedCornerShape(20.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
+                    Column(Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.Public, null, tint = palette.accent, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("搜索工具", style = MaterialTheme.typography.titleSmall, color = palette.text)
+                            Spacer(Modifier.weight(1f))
+                            Switch(
+                                checked = settings.searchTool,
+                                onCheckedChange = { on -> vm.updateSettings { it.copy(searchTool = on) } }
+                            )
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "模型没有原生联网时，应用用公开搜索代查。结果只附在当前提问后面，前面的缓存不动。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = palette.textSub
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            PillChip("DuckDuckGo", settings.searchProvider == "duckduckgo") {
+                                vm.updateSettings { it.copy(searchProvider = "duckduckgo") }
+                            }
+                            PillChip("Bing 网页", settings.searchProvider == "bing") {
+                                vm.updateSettings { it.copy(searchProvider = "bing") }
+                            }
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "搜索词会发送给所选搜索服务。公开网页搜索可能被限流，失败时会自动按普通回答继续。",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = palette.textSub
+                        )
+                    }
+                }
+            }
+
+            item {
                 TextButton(onClick = {
                     vm.updateSettings {
                         it.copy(temperature = 0.7f, maxTokens = 8192, reasoning = 0, streaming = true)
@@ -981,9 +1023,9 @@ private fun DataSettingsPage(vm: ChatViewModel, onBack: () -> Unit) {
                     SettingRow(
                         icon = Icons.Rounded.FileUpload,
                         title = "导入对话记录",
-                        subtitle = "只新增不覆盖，重复对话会自动跳过",
+                        subtitle = "支持 AI Chat、Claude、DeepSeek 的 JSON，重复对话自动跳过",
                         onClick = {
-                            importLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
+                            importLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream", "application/zip", "application/x-zip-compressed"))
                         }
                     )
                     RowDivider()
@@ -1098,7 +1140,7 @@ private fun HelpSettingsPage(vm: ChatViewModel, onBack: () -> Unit) {
             item {
                 Surface(color = palette.surface, shape = RoundedCornerShape(20.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
                     Column(Modifier.padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        InitialBadge("AI", 52.dp)
+                        AppLogo(50.dp, 15.dp)
                         Spacer(Modifier.height(10.dp))
                         Text("AI Chat 1.0.0", style = MaterialTheme.typography.titleMedium, color = palette.text)
                         Spacer(Modifier.height(4.dp))
@@ -1203,14 +1245,14 @@ private fun NavRow(
 ) {
     val palette = pal
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 12.dp),
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 15.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(palette.accent.copy(alpha = 0.09f)),
+            Modifier.size(38.dp).clip(RoundedCornerShape(11.dp)).background(palette.accent.copy(alpha = 0.09f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, null, tint = palette.accent, modifier = Modifier.size(18.dp))
+            Icon(icon, null, tint = palette.accent, modifier = Modifier.size(19.dp))
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {

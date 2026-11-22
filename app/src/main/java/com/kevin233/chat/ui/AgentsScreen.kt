@@ -1,6 +1,8 @@
 package com.kevin233.chat.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,6 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Groups
@@ -46,8 +49,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,12 +67,19 @@ import androidx.compose.ui.unit.sp
 import com.kevin233.chat.ChatViewModel
 import com.kevin233.chat.Screen
 import com.kevin233.chat.data.Agent
+import com.kevin233.chat.data.Skill
+import com.kevin233.chat.data.Skills
 import com.kevin233.chat.data.DefaultSystemPrompt
 
 @Composable
 fun AgentsScreen(vm: ChatViewModel) {
     var creating by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Agent?>(null) }
+    var tab by rememberSaveable { mutableIntStateOf(0) }
+    var deleteSkill by remember { mutableStateOf<Skill?>(null) }
+    val skillPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) vm.importSkill(uri)
+    }
     if (creating || editing != null) {
         AgentEditorScreen(vm, if (creating) null else editing) {
             creating = false
@@ -86,47 +98,170 @@ fun AgentsScreen(vm: ChatViewModel) {
                 Icon(Icons.Rounded.ArrowBack, "返回", tint = palette.text, modifier = Modifier.size(22.dp))
             }
             Column(Modifier.weight(1f)) {
-                Text("智能体", style = MaterialTheme.typography.titleLarge, color = palette.text)
+                Text("智能体与技能", style = MaterialTheme.typography.titleLarge, color = palette.text)
             }
-            TextButton(onClick = { creating = true }) {
-                Text("创建", color = palette.accent, fontWeight = FontWeight.Medium)
+            if (tab == 0) {
+                TextButton(onClick = { creating = true }) {
+                    Text("创建", color = palette.accent, fontWeight = FontWeight.Medium)
+                }
+            } else {
+                TextButton(onClick = {
+                    skillPicker.launch(arrayOf("text/*", "application/json", "application/octet-stream"))
+                }) {
+                    Text("导入", color = palette.accent, fontWeight = FontWeight.Medium)
+                }
             }
         }
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp).navigationBarsPadding()
         ) {
-            Surface(color = palette.accentSoft, shape = RoundedCornerShape(18.dp)) {
-                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.Top) {
-                    Icon(CacheStack, null, tint = palette.accent, modifier = Modifier.size(17.dp))
-                    Spacer(Modifier.width(9.dp))
-                    Text(
-                        "角色设定会固定成新对话的系统提示词。设定越稳定，缓存越容易命中，聊起来也更省钱。",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = palette.accentText
-                    )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PillChip("智能体", tab == 0) { tab = 0 }
+                PillChip("技能", tab == 1) { tab = 1 }
+            }
+            Spacer(Modifier.height(14.dp))
+            if (tab == 0) {
+                Surface(color = palette.accentSoft, shape = RoundedCornerShape(18.dp)) {
+                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.Top) {
+                        Icon(CacheStack, null, tint = palette.accent, modifier = Modifier.size(17.dp))
+                        Spacer(Modifier.width(9.dp))
+                        Text(
+                            "角色设定会固定成新对话的系统提示词。设定越稳定，缓存越容易命中，聊起来也更省钱。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = palette.accentText
+                        )
+                    }
+                }
+                Spacer(Modifier.height(18.dp))
+                if (vm.settings.customAgents.isNotEmpty()) {
+                    SectionLabel("我的智能体")
+                    Spacer(Modifier.height(8.dp))
+                    AgentRows(vm.settings.customAgents, onStart = vm::startAgent, onEdit = { editing = it })
+                    Spacer(Modifier.height(12.dp))
+                }
+                AddAgentRow { creating = true }
+                Spacer(Modifier.height(20.dp))
+                SectionLabel("推荐")
+                Spacer(Modifier.height(8.dp))
+                AgentRows(com.kevin233.chat.data.Agents.builtin, onStart = vm::startAgent, onEdit = null)
+                Spacer(Modifier.height(30.dp))
+                Text(
+                    "智能体只影响提示词和默认开关，不会额外收费。所有对话仍然只存在这台手机。",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = palette.textSub,
+                    modifier = Modifier.padding(bottom = 24.dp)
+                )
+            } else {
+                Surface(color = palette.accentSoft, shape = RoundedCornerShape(18.dp)) {
+                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.Top) {
+                        Icon(CacheStack, null, tint = palette.accent, modifier = Modifier.size(17.dp))
+                        Spacer(Modifier.width(9.dp))
+                        Text(
+                            "技能是一段固定的工作说明。装上后会在新对话里生效，提示词固定，缓存也稳。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = palette.accentText
+                        )
+                    }
+                }
+                Spacer(Modifier.height(18.dp))
+                if (vm.settings.customSkills.isNotEmpty()) {
+                    SectionLabel("我的技能")
+                    Spacer(Modifier.height(8.dp))
+                    SkillRows(vm.settings.customSkills, onUse = vm::startSkill, onDelete = { deleteSkill = it })
+                    Spacer(Modifier.height(12.dp))
+                }
+                AddSkillRow {
+                    skillPicker.launch(arrayOf("text/*", "application/json", "application/octet-stream"))
+                }
+                Spacer(Modifier.height(20.dp))
+                SectionLabel("内置技能")
+                Spacer(Modifier.height(8.dp))
+                SkillRows(Skills.builtin, onUse = vm::startSkill, onDelete = null)
+                Spacer(Modifier.height(30.dp))
+                Text(
+                    "支持导入 SKILL.md、Markdown 或纯文本文件。带 YAML 头的技能会自动读取名字和说明。",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = palette.textSub,
+                    modifier = Modifier.padding(bottom = 24.dp)
+                )
+            }
+        }
+    }
+    val target = deleteSkill
+    if (target != null) {
+        AlertDialog(
+            onDismissRequest = { deleteSkill = null },
+            title = { Text("删除这个技能？") },
+            text = { Text("已经开始的对话会保留，但这里就找不到了。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    deleteSkill = null
+                    vm.deleteSkill(target.id)
+                    vm.showToast("已删除")
+                }) { Text("删除", color = palette.danger) }
+            },
+            dismissButton = { TextButton(onClick = { deleteSkill = null }) { Text("取消") } }
+        )
+    }
+}
+
+@Composable
+private fun SkillRows(skills: List<Skill>, onUse: (Skill) -> Unit, onDelete: ((Skill) -> Unit)?) {
+    val palette = pal
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        skills.forEach { skill ->
+            Surface(
+                color = palette.surface,
+                shape = RoundedCornerShape(16.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().clickable { onUse(skill) }.padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    InitialBadge(skill.name, 38.dp)
+                    Spacer(Modifier.width(11.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(skill.name, style = MaterialTheme.typography.titleSmall, color = palette.text, maxLines = 1)
+                        if (skill.description.isNotBlank()) {
+                            Text(
+                                skill.description,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = palette.textSub,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                    val remove = onDelete
+                    if (remove != null) {
+                        IconButton(onClick = { remove(skill) }, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Rounded.Delete, "删除", tint = palette.textSub, modifier = Modifier.size(17.dp))
+                        }
+                    } else {
+                        Icon(Icons.Rounded.ChevronRight, null, tint = palette.textSub, modifier = Modifier.size(18.dp))
+                    }
                 }
             }
-            Spacer(Modifier.height(18.dp))
-            if (vm.settings.customAgents.isNotEmpty()) {
-                SectionLabel("我的智能体")
-                Spacer(Modifier.height(8.dp))
-                AgentRows(vm.settings.customAgents, onStart = vm::startAgent, onEdit = { editing = it })
-                Spacer(Modifier.height(12.dp))
-            }
-            AddAgentRow { creating = true }
-            Spacer(Modifier.height(20.dp))
-            SectionLabel("推荐")
-            Spacer(Modifier.height(8.dp))
-            AgentRows(com.kevin233.chat.data.Agents.builtin, onStart = vm::startAgent, onEdit = null)
-            Spacer(Modifier.height(30.dp))
-            Text(
-                "智能体只影响提示词和默认开关，不会额外收费。所有对话仍然只存在这台手机。",
-                style = MaterialTheme.typography.labelSmall,
-                color = palette.textSub,
-                modifier = Modifier.padding(bottom = 24.dp)
-            )
         }
+    }
+}
+
+@Composable
+private fun AddSkillRow(onClick: () -> Unit) {
+    val palette = pal
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+            .border(1.dp, palette.border, RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 13.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Rounded.Add, null, tint = palette.accent, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(6.dp))
+        Text("导入技能文件", style = MaterialTheme.typography.labelLarge, color = palette.accent)
     }
 }
 
@@ -172,17 +307,12 @@ private fun AgentCard(
             Modifier.fillMaxWidth().clickable { onStart(agent) }.padding(14.dp)
         ) {
             Row(verticalAlignment = Alignment.Top) {
-                Box(
-                    Modifier.size(42.dp).clip(RoundedCornerShape(13.dp)).background(palette.accentSoft),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(agent.emoji, fontSize = 22.sp)
-                }
+                InitialBadge(agent.name, 42.dp)
                 Spacer(Modifier.weight(1f))
                 val editAction = onEdit
                 if (editAction != null) {
-                    IconButton(onClick = { editAction(agent) }, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Rounded.Edit, "编辑", tint = palette.textSub, modifier = Modifier.size(15.dp))
+                    IconButton(onClick = { editAction(agent) }, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Rounded.Edit, "编辑", tint = palette.textSub, modifier = Modifier.size(16.dp))
                     }
                 }
             }
@@ -246,7 +376,7 @@ private fun AddAgentRow(onClick: () -> Unit) {
 @Composable
 private fun AgentEditorScreen(vm: ChatViewModel, existing: Agent?, onBack: () -> Unit) {
     val palette = pal
-    var draft by remember(existing?.id) { mutableStateOf(existing ?: Agent(emoji = "🤖")) }
+    var draft by remember(existing?.id) { mutableStateOf(existing ?: Agent()) }
     var confirmDelete by remember { mutableStateOf(false) }
     BackHandler { onBack() }
     Column(Modifier.fillMaxSize().background(palette.bg).statusBarsPadding().imePadding()) {
@@ -274,26 +404,15 @@ private fun AgentEditorScreen(vm: ChatViewModel, existing: Agent?, onBack: () ->
             Modifier.fillMaxSize().verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp).navigationBarsPadding()
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = draft.emoji,
-                    onValueChange = { draft = draft.copy(emoji = it.take(4)) },
-                    label = { Text("头像") },
-                    singleLine = true,
-                    textStyle = TextStyle(fontSize = 22.sp),
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.width(92.dp)
-                )
-                OutlinedTextField(
-                    value = draft.name,
-                    onValueChange = { draft = draft.copy(name = it) },
-                    label = { Text("名字") },
-                    placeholder = { Text("比如：小红书文案助手") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            OutlinedTextField(
+                value = draft.name,
+                onValueChange = { draft = draft.copy(name = it) },
+                label = { Text("名字") },
+                placeholder = { Text("比如：小红书文案助手") },
+                singleLine = true,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth()
+            )
             Spacer(Modifier.height(10.dp))
             OutlinedTextField(
                 value = draft.tagline,

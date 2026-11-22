@@ -108,7 +108,7 @@ fun HistoryScreen(vm: ChatViewModel) {
                 Text("历史记录", style = MaterialTheme.typography.titleLarge, color = palette.text)
             }
             IconButton(onClick = {
-                importLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
+                importLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream", "application/zip", "application/x-zip-compressed"))
             }) {
                 Icon(Icons.Rounded.FileUpload, "导入", tint = palette.textSub, modifier = Modifier.size(20.dp))
             }

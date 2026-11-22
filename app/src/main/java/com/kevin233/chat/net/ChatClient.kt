@@ -191,7 +191,9 @@ class ChatClient {
             val images = if (m.isUser) m.images else emptyList()
             if (images.isNotEmpty()) {
                 val parts = JSONArray()
-                if (m.content.isNotBlank()) parts.put(JSONObject().put("type", "text").put("text", cleanForApi(m.content)))
+                if (m.content.isNotBlank() || m.searchContext.isNotBlank()) {
+                    parts.put(JSONObject().put("type", "text").put("text", cleanForApi(apiText(m))))
+                }
                 images.forEach { image ->
                     parts.put(
                         JSONObject()
@@ -200,8 +202,8 @@ class ChatClient {
                     )
                 }
                 arr.put(JSONObject().put("role", "user").put("content", parts))
-            } else if (m.content.isNotBlank()) {
-                arr.put(JSONObject().put("role", m.role).put("content", cleanForApi(m.content)))
+            } else if (m.content.isNotBlank() || m.searchContext.isNotBlank()) {
+                arr.put(JSONObject().put("role", m.role).put("content", cleanForApi(apiText(m))))
             }
         }
         body.put("messages", arr)
@@ -332,10 +334,12 @@ class ChatClient {
                         )
                     }
                 }
-                if (m.content.isNotBlank()) blocks.put(JSONObject().put("type", "text").put("text", cleanForApi(m.content)))
+                if (m.content.isNotBlank() || m.searchContext.isNotBlank()) {
+                    blocks.put(JSONObject().put("type", "text").put("text", cleanForApi(apiText(m))))
+                }
                 blocks
             } else {
-                cleanForApi(m.content)
+                cleanForApi(apiText(m))
             }
             arr.put(
                 JSONObject()
@@ -516,7 +520,9 @@ class ChatClient {
                     )
                 }
             }
-            if (m.content.isNotBlank()) parts.put(JSONObject().put("text", cleanForApi(m.content)))
+            if (m.content.isNotBlank() || m.searchContext.isNotBlank()) {
+                parts.put(JSONObject().put("text", cleanForApi(apiText(m))))
+            }
             contents.put(
                 JSONObject()
                     .put("role", if (m.isUser) "user" else "model")
@@ -894,7 +900,10 @@ class ChatClient {
             if (last != null && last.isUser == m.isUser) {
                 out[out.size - 1] = last.copy(
                     content = last.content + "\n\n" + m.content,
-                    images = last.images + m.images
+                    images = last.images + m.images,
+                    searchContext = listOf(last.searchContext, m.searchContext)
+                        .filter { it.isNotBlank() }
+                        .joinToString("\n\n")
                 )
             } else {
                 out.add(m)
@@ -920,6 +929,11 @@ class ChatClient {
             m.contains("sonnet-4") || m.contains("sonnet-5") || m.contains("opus-4") ||
             m.contains("opus-5") || m.contains("haiku-4") || m.contains("haiku-5") ||
             m.contains("fable") || m.contains("mythos")
+    }
+
+    private fun apiText(message: Message): String {
+        if (message.searchContext.isBlank()) return message.content
+        return message.searchContext + "\n\n" + message.content
     }
 
     private fun cleanForApi(text: String): String =

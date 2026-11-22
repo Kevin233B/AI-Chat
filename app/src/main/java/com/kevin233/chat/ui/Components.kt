@@ -146,17 +146,17 @@ fun SettingRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
-            .padding(vertical = 10.dp),
+            .padding(vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             Modifier
-                .size(36.dp)
+                .size(38.dp)
                 .clip(RoundedCornerShape(10.dp))
                 .background(tint.copy(alpha = 0.10f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, null, tint = tint, modifier = Modifier.size(19.dp))
+            Icon(icon, null, tint = tint, modifier = Modifier.size(20.dp))
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
@@ -210,7 +210,7 @@ fun PillChip(
                 RoundedCornerShape(50)
             )
             .clickable { onClick() }
-            .padding(horizontal = 14.dp, vertical = 8.dp)
+            .padding(horizontal = 15.dp, vertical = 9.dp)
     ) {
         Text(
             text = text,

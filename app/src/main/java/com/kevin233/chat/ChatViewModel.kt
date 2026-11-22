@@ -18,17 +18,22 @@ import com.kevin233.chat.data.Preset
 import com.kevin233.chat.data.Presets
 import com.kevin233.chat.data.SearchHit
 import com.kevin233.chat.data.Settings
+import com.kevin233.chat.data.Skill
+import com.kevin233.chat.data.Skills
 import com.kevin233.chat.data.Store
 import com.kevin233.chat.data.cacheFingerprint
 import com.kevin233.chat.data.composePrompt
 import com.kevin233.chat.net.ChatClient
+import com.kevin233.chat.net.SearchClient
 import com.kevin233.chat.net.ChatException
 import com.kevin233.chat.net.Usage
 import com.kevin233.chat.util.Tokens
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import java.io.ByteArrayInputStream
 import java.io.IOException
+import java.util.zip.ZipInputStream
 
 enum class Screen { CHAT, HISTORY, AGENTS, SETTINGS, CONFIG_EDIT }
 
@@ -53,6 +58,8 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     var screen by mutableStateOf(Screen.CHAT)
     var editingConfig by mutableStateOf<ApiConfig?>(null)
     var streaming by mutableStateOf(false)
+        private set
+    var searching by mutableStateOf(false)
         private set
     var pendingJumpMessageId by mutableStateOf<String?>(null)
         private set
@@ -92,6 +99,66 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     val agents: List<Agent>
         get() = Agents.builtin + settings.customAgents
 
+    val skills: List<Skill>
+        get() = Skills.builtin + settings.customSkills
+
+    fun startSkill(skill: Skill) {
+        val base = settings.systemPrompt.trim().ifBlank { DefaultSystemPrompt }
+        val system = base + "\n\n【技能：${skill.name}】\n" + skill.content
+        val conv = Conversation(
+            title = skill.name,
+            systemPrompt = composePrompt(system, settings.anchor),
+            started = true,
+            reasoning = settings.reasoning,
+            agentId = skill.id,
+            agentName = skill.name,
+            modelKey = activeConfig?.cacheFingerprint() ?: ""
+        )
+        conversations = listOf(conv) + conversations
+        activeId = conv.id
+        screen = Screen.CHAT
+        if (!isConfigured) showToast("先配置 API，再使用这个技能")
+    }
+
+    fun saveSkill(skill: Skill) {
+        val clean = skill.copy(
+            name = skill.name.trim().ifBlank { "导入的技能" },
+            content = skill.content.trim().ifBlank { DefaultSystemPrompt },
+            builtin = false
+        )
+        val list = settings.customSkills
+        val updated = if (list.any { it.id == clean.id }) {
+            list.map { if (it.id == clean.id) clean else it }
+        } else {
+            list + clean
+        }
+        updateSettings { it.copy(customSkills = updated) }
+    }
+
+    fun deleteSkill(id: String) {
+        updateSettings { it.copy(customSkills = it.customSkills.filterNot { skill -> skill.id == id }) }
+    }
+
+    fun importSkill(uri: Uri) {
+        viewModelScope.launch {
+            try {
+                val resolver = getApplication<Application>().contentResolver
+                val text = resolver.openInputStream(uri)
+                    ?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
+                    ?: throw IllegalStateException("这个文件打不开")
+                val fallback = uri.lastPathSegment?.substringAfterLast('/')
+                    ?.substringBeforeLast('.')?.takeIf { it.isNotBlank() } ?: "导入的技能"
+                val skill = Skills.parse(text, fallback)
+                saveSkill(skill)
+                showToast("技能「${skill.name}」已安装")
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                showToast("导入失败：${e.message ?: "文件格式不对"}")
+            }
+        }
+    }
+
     fun startAgent(agent: Agent) {
         val conv = Conversation(
             title = agent.name,
@@ -113,7 +180,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     fun saveAgent(agent: Agent) {
         val clean = agent.copy(
             name = agent.name.trim().ifBlank { "未命名智能体" },
-            emoji = agent.emoji.ifBlank { "🤖" },
+            emoji = "",
             prompt = agent.prompt.ifBlank { DefaultSystemPrompt },
             builtin = false
         )
@@ -367,12 +434,17 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     fun toggleWebSearch() {
         val conv = currentConversation ?: return
-        if (!Presets.supportsWebSearch(activeConfig)) {
-            showToast("这个模型不支持联网，换 Claude、Gemini、OpenRouter 或通义试试")
+        val native = Presets.supportsWebSearch(activeConfig)
+        val next = !conv.webSearch
+        if (next && !native && !settings.searchTool) {
+            showToast("这个模型不支持原生联网，先去设置里打开搜索工具")
             return
         }
         if (conv.messages.isNotEmpty()) showToast("联网状态变了，这一轮缓存会重新计算")
-        updateConversationById(conv.id) { it.copy(webSearch = !it.webSearch) }
+        updateConversationById(conv.id) { it.copy(webSearch = next) }
+        if (next) {
+            showToast(if (native) "已开启原生联网" else "已开启搜索工具，模型不支持原生联网")
+        }
     }
 
     fun setReasoning(level: Int) {
@@ -438,14 +510,33 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         replaceConversation(working)
         streaming = true
         stoppedByUser = false
-        val history = working.messages.dropLast(1)
-        val system = working.systemPrompt.ifBlank { settings.systemPrompt }
         job = viewModelScope.launch {
             val text = StringBuilder()
             val reasoning = StringBuilder()
             var usage: Usage? = null
             var failed: String? = null
+            var searchingNow = false
             try {
+                val nativeSearch = Presets.supportsWebSearch(config)
+                if (working.webSearch && !nativeSearch && settings.searchTool) {
+                    val userMessage = working.messages.lastOrNull { it.isUser && it.images.isEmpty() }
+                    if (userMessage != null && userMessage.content.isNotBlank()) {
+                        searchingNow = true
+                        searching = true
+                        val results = SearchClient.search(userMessage.content, settings.searchProvider)
+                        if (results != null) {
+                            patchMessage(working.id, userMessage.id) { it.copy(searchContext = results) }
+                            persist(working.id)
+                        } else {
+                            showToast("搜索没成功，先按普通回答")
+                        }
+                        searching = false
+                        searchingNow = false
+                    }
+                }
+                val current = conversations.firstOrNull { it.id == working.id } ?: working
+                val history = current.messages.dropLast(1)
+                val system = current.systemPrompt.ifBlank { settings.systemPrompt }
                 client.stream(
                     config = config,
                     messages = history,
@@ -458,7 +549,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                     sessionKey = working.id,
                     useStream = settings.streaming,
                     reasoning = working.reasoning,
-                    webSearch = working.webSearch
+                    webSearch = working.webSearch && nativeSearch
                 ).collect { delta ->
                     if (delta.text.isNotEmpty()) text.append(delta.text)
                     if (delta.reasoning.isNotEmpty()) reasoning.append(delta.reasoning)
@@ -489,6 +580,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                         error = failed ?: ""
                     )
                 }
+                if (searchingNow) searching = false
                 streaming = false
                 persist(working.id)
                 if (finalUsage != null) {
@@ -568,6 +660,27 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         showToast("已清空所有对话")
     }
 
+    private fun readImportTexts(bytes: ByteArray): List<String> {
+        val zip = bytes.size > 4 &&
+            bytes[0] == 0x50.toByte() && bytes[1] == 0x4B.toByte() &&
+            (bytes[2] == 0x03.toByte() || bytes[2] == 0x05.toByte() || bytes[2] == 0x07.toByte())
+        if (!zip) return listOf(String(bytes, Charsets.UTF_8))
+        val texts = mutableListOf<String>()
+        ZipInputStream(ByteArrayInputStream(bytes)).use { stream ->
+            var entry = stream.nextEntry
+            while (entry != null) {
+                val name = entry.name.lowercase()
+                if (!entry.isDirectory && (name.endsWith(".json") || name.endsWith(".txt") || name.endsWith(".md"))) {
+                    val text = stream.readBytes().toString(Charsets.UTF_8)
+                    if (text.isNotBlank()) texts.add(text)
+                }
+                stream.closeEntry()
+                entry = stream.nextEntry
+            }
+        }
+        return texts
+    }
+
     fun backupFileName(): String =
         "aichat-backup-" + java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.CHINA)
             .format(java.util.Date()) + ".json"
@@ -594,10 +707,11 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             try {
                 val resolver = getApplication<Application>().contentResolver
-                val text = resolver.openInputStream(uri)
-                    ?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
+                val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
                     ?: throw IllegalStateException("这个文件打不开")
-                val incoming = store.parseConversations(text).distinctBy { it.id }
+                val incoming = readImportTexts(bytes)
+                    .flatMap { store.parseConversations(it) }
+                    .distinctBy { it.id }
                 if (incoming.isEmpty()) {
                     showToast("文件里没有可以导入的对话")
                     return@launch

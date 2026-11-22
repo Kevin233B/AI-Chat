@@ -221,6 +221,8 @@ private fun WelcomeStep(onStart: () -> Unit) {
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                AppLogo(58.dp, 18.dp)
+                Spacer(Modifier.height(12.dp))
                 Text("AI Chat", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold)
                 Text("轻一点，省一点", color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp)
             }

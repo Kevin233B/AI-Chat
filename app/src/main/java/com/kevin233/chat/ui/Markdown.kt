@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,8 +22,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -243,34 +249,53 @@ fun MarkdownText(
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         blocks.forEach { block ->
             when (block) {
-                is MdBlock.Code -> Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .background(palette.codeBg, RoundedCornerShape(14.dp))
-                ) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(start = 14.dp, end = 4.dp, top = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = block.lang.ifBlank { "code" },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF8B93A5),
-                            modifier = Modifier.weight(1f)
-                        )
-                        CopyButton(block.code, Color(0xFFB9C0CE))
-                    }
-                    Text(
-                        text = block.code,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 13.sp,
-                        lineHeight = 20.sp,
-                        color = palette.codeText,
-                        modifier = Modifier
+                is MdBlock.Code -> {
+                    val langLower = block.lang.lowercase()
+                    val previewable = langLower == "html" || langLower == "svg" ||
+                        block.code.trimStart().startsWith("<!doctype html", true) ||
+                        block.code.trimStart().startsWith("<html", true) ||
+                        block.code.trimStart().startsWith("<svg", true)
+                    var preview by remember(block.code) { mutableStateOf(false) }
+                    Column(
+                        Modifier
                             .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState())
-                            .padding(start = 14.dp, end = 14.dp, top = 2.dp, bottom = 12.dp)
-                    )
+                            .background(palette.codeBg, RoundedCornerShape(14.dp))
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(start = 14.dp, end = 4.dp, top = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = block.lang.ifBlank { "code" },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF8B93A5),
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (previewable) {
+                                TextButton(
+                                    onClick = { preview = true },
+                                    contentPadding = PaddingValues(horizontal = 7.dp)
+                                ) {
+                                    Text("预览", fontSize = 11.sp, color = Color(0xFFB9C0CE))
+                                }
+                            }
+                            CopyButton(block.code, Color(0xFFB9C0CE))
+                        }
+                        Text(
+                            text = block.code,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 13.sp,
+                            lineHeight = 20.sp,
+                            color = palette.codeText,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState())
+                                .padding(start = 14.dp, end = 14.dp, top = 2.dp, bottom = 12.dp)
+                        )
+                    }
+                    if (preview) {
+                        CodePreviewDialog(block.code, block.lang) { preview = false }
+                    }
                 }
                 is MdBlock.Heading -> Text(
                     text = Markdown.inline(block.text, palette.text, 16f + (4 - block.level) * 1.5f, 28f),

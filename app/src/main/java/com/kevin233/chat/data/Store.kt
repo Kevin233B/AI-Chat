@@ -4,6 +4,11 @@ import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
+import java.util.UUID
 
 class Store(context: Context) {
 
@@ -84,6 +89,18 @@ class Store(context: Context) {
         o.put("wallpaper", s.wallpaper)
         o.put("wallpaperPath", s.wallpaperPath)
         o.put("glassAlpha", s.glassAlpha.toDouble())
+        o.put("searchProvider", s.searchProvider)
+        o.put("searchTool", s.searchTool)
+        val skills = JSONArray()
+        s.customSkills.forEach { skill ->
+            skills.put(JSONObject().apply {
+                put("id", skill.id)
+                put("name", skill.name)
+                put("description", skill.description)
+                put("content", skill.content)
+            })
+        }
+        o.put("customSkills", skills)
         o.put("temperature", s.temperature.toDouble())
         o.put("maxTokens", s.maxTokens)
         o.put("reasoning", s.reasoning)
@@ -146,6 +163,25 @@ class Store(context: Context) {
             wallpaper = o.optString("wallpaper", "none"),
             wallpaperPath = o.optString("wallpaperPath"),
             glassAlpha = o.optDouble("glassAlpha", 0.82).toFloat(),
+            searchProvider = o.optString("searchProvider", "duckduckgo"),
+            searchTool = o.optBoolean("searchTool", true),
+            customSkills = run {
+                val list = mutableListOf<Skill>()
+                val skills = o.optJSONArray("customSkills") ?: JSONArray()
+                for (i in 0 until skills.length()) {
+                    val skill = skills.optJSONObject(i) ?: continue
+                    if (skill.optString("name").isBlank() || skill.optString("content").isBlank()) continue
+                    list.add(
+                        Skill(
+                            id = skill.optString("id").ifBlank { java.util.UUID.randomUUID().toString() },
+                            name = skill.optString("name"),
+                            description = skill.optString("description"),
+                            content = skill.optString("content")
+                        )
+                    )
+                }
+                list
+            },
             temperature = o.optDouble("temperature", 0.7).toFloat(),
             maxTokens = o.optInt("maxTokens", 8192),
             reasoning = o.optInt("reasoning", 0),
@@ -187,15 +223,38 @@ class Store(context: Context) {
     fun parseConversations(text: String): List<Conversation> {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return emptyList()
-        val array = if (trimmed.startsWith("[")) {
-            JSONArray(trimmed)
-        } else {
-            val obj = JSONObject(trimmed)
-            obj.optJSONArray("conversations") ?: JSONArray()
+        return try {
+            if (trimmed.startsWith("[")) {
+                val array = JSONArray(trimmed)
+                val own = parseOwnArray(array)
+                if (own.isNotEmpty()) own else parseForeignArray(array)
+            } else {
+                val obj = JSONObject(trimmed)
+                val own = parseOwnArray(obj.optJSONArray("conversations"))
+                if (own.isNotEmpty()) {
+                    own
+                } else {
+                    val array = obj.optJSONArray("conversations")
+                        ?: obj.optJSONArray("data")
+                        ?: obj.optJSONArray("chats")
+                    val foreign = if (array != null) parseForeignArray(array) else emptyList()
+                    if (foreign.isNotEmpty()) foreign else {
+                        val single = parseForeignConversation(obj)
+                        if (single != null) listOf(single) else emptyList()
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            emptyList()
         }
+    }
+
+    private fun parseOwnArray(array: JSONArray?): List<Conversation> {
+        if (array == null) return emptyList()
         val list = mutableListOf<Conversation>()
         for (i in 0 until array.length()) {
             val o = array.optJSONObject(i) ?: continue
+            if (!o.has("systemPrompt") && !o.has("modelKey") && !o.has("started")) continue
             try {
                 val conv = sanitize(convFromJson(o))
                 if (conv.id.isNotBlank() && conv.messages.isNotEmpty()) list.add(conv)
@@ -203,6 +262,124 @@ class Store(context: Context) {
             }
         }
         return list
+    }
+
+    private fun parseForeignArray(array: JSONArray): List<Conversation> {
+        val list = mutableListOf<Conversation>()
+        for (i in 0 until array.length()) {
+            val o = array.optJSONObject(i) ?: continue
+            val conv = parseForeignConversation(o) ?: continue
+            list.add(conv)
+        }
+        return list
+    }
+
+    private fun parseForeignConversation(o: JSONObject): Conversation? {
+        val rawMessages = o.optJSONArray("chat_messages")
+            ?: o.optJSONArray("messages")
+            ?: o.optJSONArray("chat_history")
+            ?: o.optJSONArray("turns")
+            ?: o.optJSONArray("dialogue")
+            ?: return null
+        val messages = mutableListOf<Message>()
+        for (i in 0 until rawMessages.length()) {
+            val raw = rawMessages.optJSONObject(i) ?: continue
+            val message = parseForeignMessage(raw) ?: continue
+            messages.add(message)
+        }
+        if (messages.isEmpty()) return null
+        val createdAt = parseTime(
+            o.opt("created_at") ?: o.opt("createdAt") ?: o.opt("create_time") ?: o.opt("timestamp")
+        )
+        val updatedAt = parseTime(
+            o.opt("updated_at") ?: o.opt("updatedAt") ?: o.opt("update_time") ?: o.opt("timestamp")
+        ).takeIf { it > 0 } ?: messages.lastOrNull()?.ts ?: createdAt
+        val sourceId = o.optString("uuid").ifBlank { o.optString("id") }
+        val title = o.optString("name").ifBlank { o.optString("title") }
+            .ifBlank { o.optString("subject") }
+            .ifBlank { messages.firstOrNull { it.isUser }?.content?.take(24)?.replace("\n", " ") ?: "导入的对话" }
+        val safeId = sourceId.filter { it.isLetterOrDigit() || it == '-' || it == '_' }.take(80)
+        return Conversation(
+            id = "imported-" + safeId.ifBlank { UUID.randomUUID().toString() },
+            title = title,
+            messages = messages,
+            createdAt = createdAt.takeIf { it > 0 } ?: messages.first().ts,
+            updatedAt = updatedAt,
+            started = true
+        )
+    }
+
+    private fun parseForeignMessage(o: JSONObject): Message? {
+        val roleRaw = o.optString("role").ifBlank { o.optString("sender") }
+            .ifBlank { o.optString("author") }.lowercase()
+        val role = when (roleRaw) {
+            "user", "human", "customer" -> "user"
+            "assistant", "ai", "bot", "model", "claude" -> "assistant"
+            else -> return null
+        }
+        val content = extractText(o.opt("content") ?: o.opt("text") ?: o.opt("message") ?: o.opt("value"))
+        if (content.isBlank()) return null
+        val ts = parseTime(
+            o.opt("created_at") ?: o.opt("createdAt") ?: o.opt("create_time")
+                ?: o.opt("timestamp") ?: o.opt("ts")
+        )
+        return Message(
+            id = o.optString("uuid").ifBlank { o.optString("id") }.ifBlank { UUID.randomUUID().toString() },
+            role = role,
+            content = content,
+            ts = ts.takeIf { it > 0 } ?: System.currentTimeMillis()
+        )
+    }
+
+    private fun extractText(value: Any?): String {
+        return when (value) {
+            null -> ""
+            is String -> value
+            is JSONArray -> {
+                val parts = mutableListOf<String>()
+                for (i in 0 until value.length()) {
+                    val item = value.opt(i)
+                    val text = when (item) {
+                        is String -> item
+                        is JSONObject -> item.optString("text").ifBlank { item.optString("content") }
+                        else -> ""
+                    }
+                    if (text.isNotBlank()) parts.add(text)
+                }
+                parts.joinToString("\n")
+            }
+            is JSONObject -> value.optString("text").ifBlank { value.optString("content") }
+            else -> ""
+        }.trim()
+    }
+
+    private fun parseTime(value: Any?): Long {
+        if (value == null) return 0L
+        if (value is Number) {
+            val n = value.toLong()
+            return if (n in 1..9_999_999_999L) n * 1000L else n
+        }
+        val raw = value.toString().trim()
+        if (raw.isBlank()) return 0L
+        raw.toLongOrNull()?.let { n -> return if (n in 1..9_999_999_999L) n * 1000L else n }
+        val patterns = listOf(
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+            "yyyy-MM-dd'T'HH:mm:ssXXX",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy/MM/dd HH:mm:ss"
+        )
+        for (pattern in patterns) {
+            try {
+                val format = SimpleDateFormat(pattern, Locale.US)
+                format.timeZone = TimeZone.getTimeZone("UTC")
+                val date = format.parse(raw) ?: continue
+                return date.time
+            } catch (_: Exception) {
+            }
+        }
+        return 0L
     }
 
     private fun msgToJson(m: Message): JSONObject = JSONObject().apply {
@@ -213,6 +390,7 @@ class Store(context: Context) {
         val imageArr = JSONArray()
         m.images.forEach { imageArr.put(it) }
         put("images", imageArr)
+        put("searchContext", m.searchContext)
         put("cacheHit", m.cacheHit)
         put("cacheMiss", m.cacheMiss)
         put("outTokens", m.outTokens)
@@ -229,6 +407,7 @@ class Store(context: Context) {
             val arr = o.optJSONArray("images") ?: JSONArray()
             (0 until arr.length()).mapNotNull { arr.optString(it).takeIf { v -> v.isNotBlank() } }
         },
+        searchContext = o.optString("searchContext"),
         cacheHit = o.optInt("cacheHit"),
         cacheMiss = o.optInt("cacheMiss"),
         outTokens = o.optInt("outTokens"),

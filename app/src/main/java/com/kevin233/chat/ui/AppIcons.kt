@@ -1,7 +1,10 @@
 package com.kevin233.chat.ui
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -9,6 +12,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -53,6 +62,43 @@ val CacheStack: ImageVector by lazy {
             close()
         }
     }.build()
+}
+
+@Composable
+fun AppLogo(size: Dp = 40.dp, radius: Dp = 13.dp) {
+    Box(
+        Modifier.size(size)
+            .shadow(5.dp, RoundedCornerShape(radius), clip = false)
+            .clip(RoundedCornerShape(radius))
+            .background(AppGradient),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(Modifier.fillMaxSize().padding(size * 0.19f)) {
+            val w = this.size.width
+            val h = this.size.height
+            val bubble = Path().apply {
+                addRoundRect(
+                    RoundRect(
+                        rect = Rect(0f, h * 0.04f, w, h * 0.74f),
+                        cornerRadius = CornerRadius(w * 0.24f)
+                    )
+                )
+                moveTo(w * 0.30f, h * 0.68f)
+                lineTo(w * 0.22f, h)
+                lineTo(w * 0.50f, h * 0.70f)
+                close()
+            }
+            drawPath(bubble, Color.White)
+            val dot = w * 0.072f
+            listOf(0.32f, 0.50f, 0.68f).forEach { x ->
+                drawCircle(
+                    color = Color(0xFF4D6BFE),
+                    radius = dot,
+                    center = Offset(w * x, h * 0.38f)
+                )
+            }
+        }
+    }
 }
 
 @Composable

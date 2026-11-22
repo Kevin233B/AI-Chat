@@ -217,9 +217,7 @@ private fun ChatPane(
             .background(palette.bg)
             .statusBarsPadding()
     ) {
-        val topTitle = conv?.let { c ->
-            if (c.agentEmoji.isNotBlank()) "${c.agentEmoji} ${c.title}" else c.title
-        } ?: "AI Chat"
+        val topTitle = conv?.title ?: "AI Chat"
         TopBar(
             title = topTitle,
             subtitle = config?.let { "${it.name}，${it.model}" } ?: "还没配置模型",
@@ -283,8 +281,8 @@ private fun ChatPane(
                             streaming = vm.streaming && msg.id == messages.lastOrNull()?.id,
                             wide = wide,
                             highlight = msg.id == vm.highlightedMessageId,
-                            agentEmoji = conv?.agentEmoji.orEmpty(),
                             agentName = conv?.agentName.orEmpty(),
+                            searching = vm.searching,
                             onImageClick = { previewImage = it }
                         )
                     }
@@ -421,6 +419,8 @@ private fun Sidebar(
             Modifier.padding(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            AppLogo(34.dp, 10.dp)
+            Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text("AI Chat", style = MaterialTheme.typography.titleLarge, color = palette.text)
             }
@@ -459,8 +459,8 @@ private fun Sidebar(
         ) {
             Icon(Icons.Rounded.Groups, null, tint = palette.textSub, modifier = Modifier.size(17.dp))
             Spacer(Modifier.width(8.dp))
-            Text("智能体与人设", style = MaterialTheme.typography.bodySmall, color = palette.text, modifier = Modifier.weight(1f))
-            Text("${vm.agents.size}", style = MaterialTheme.typography.labelSmall, color = palette.textSub)
+            Text("智能体与技能", style = MaterialTheme.typography.bodySmall, color = palette.text, modifier = Modifier.weight(1f))
+            Text("${vm.agents.size + vm.skills.size}", style = MaterialTheme.typography.labelSmall, color = palette.textSub)
         }
         Spacer(Modifier.height(6.dp))
         Row(
@@ -524,22 +524,16 @@ private fun Sidebar(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (conv.agentEmoji.isNotBlank()) {
-                                Text(conv.agentEmoji, fontSize = 13.sp)
-                                Spacer(Modifier.width(4.dp))
-                            }
-                            Text(
-                                conv.title,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontSize = 14.sp,
-                                color = palette.text,
-                                fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
+                        Text(
+                            conv.title,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontSize = 14.sp,
+                            color = palette.text,
+                            fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                         Text(
                             "${timeLabel(conv.updatedAt)}，${conv.messages.count { it.isUser }} 条提问",
                             style = MaterialTheme.typography.labelSmall,
@@ -664,7 +658,6 @@ private fun CacheSummary(vm: ChatViewModel, modifier: Modifier = Modifier) {
 private fun EmptyState(vm: ChatViewModel, modifier: Modifier = Modifier) {
     val palette = pal
     val conv = vm.currentConversation
-    val agentEmoji = conv?.agentEmoji.orEmpty()
     val agentName = conv?.agentName.orEmpty()
     val suggestions = listOf(
         "帮我写一段自我介绍",
@@ -679,17 +672,12 @@ private fun EmptyState(vm: ChatViewModel, modifier: Modifier = Modifier) {
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (agentEmoji.isNotBlank()) {
-                Box(
-                    Modifier.size(66.dp).clip(RoundedCornerShape(20.dp)).background(palette.accentSoft),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(agentEmoji, fontSize = 32.sp)
-                }
+            if (agentName.isNotBlank()) {
+                InitialBadge(agentName, 66.dp)
             }
             Spacer(Modifier.height(18.dp))
             Text(
-                if (agentEmoji.isNotBlank()) "我是$agentName" else "你好，我是 AI Chat",
+                if (agentName.isNotBlank()) "我是$agentName" else "你好，我是 AI Chat",
                 style = MaterialTheme.typography.headlineSmall,
                 color = palette.text,
                 textAlign = TextAlign.Center
@@ -720,7 +708,7 @@ private fun EmptyState(vm: ChatViewModel, modifier: Modifier = Modifier) {
                 }
             }
             Spacer(Modifier.height(18.dp))
-            if (agentEmoji.isBlank()) {
+            if (agentName.isBlank()) {
                 TextButton(onClick = { vm.screen = Screen.AGENTS }) {
                     Text("或者，试试智能体", color = palette.accent, style = MaterialTheme.typography.labelMedium)
                 }
@@ -755,8 +743,8 @@ private fun MessageRow(
     streaming: Boolean,
     wide: Boolean,
     highlight: Boolean = false,
-    agentEmoji: String = "",
     agentName: String = "",
+    searching: Boolean = false,
     onImageClick: (String) -> Unit = {}
 ) {
     val palette = pal
@@ -800,6 +788,23 @@ private fun MessageRow(
                                 color = palette.userBubbleText
                             )
                         }
+                        if (msg.searchContext.isNotBlank()) {
+                            Spacer(Modifier.height(6.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Rounded.Public,
+                                    null,
+                                    tint = palette.accent,
+                                    modifier = Modifier.size(11.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    "联网搜索",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = palette.accent
+                                )
+                            }
+                        }
                     }
                 }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
@@ -828,15 +833,10 @@ private fun MessageRow(
 
     Column(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (agentEmoji.isNotBlank()) {
-                Box(
-                    Modifier.size(26.dp).clip(RoundedCornerShape(8.dp)).background(palette.accentSoft),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(agentEmoji, fontSize = 14.sp)
-                }
+            if (agentName.isNotBlank()) {
+                InitialBadge(agentName, 26.dp)
+                Spacer(Modifier.width(9.dp))
             }
-            if (agentEmoji.isNotBlank()) Spacer(Modifier.width(9.dp))
             Text(agentName.ifBlank { "AI Chat" }, style = MaterialTheme.typography.labelMedium, color = palette.textSub)
             Spacer(Modifier.weight(1f))
             var menu by remember { mutableStateOf(false) }
@@ -886,7 +886,11 @@ private fun MessageRow(
             Row(Modifier.padding(start = 2.dp, top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                 DotsLoading()
                 Spacer(Modifier.width(8.dp))
-                Text("正在思考…", style = MaterialTheme.typography.bodySmall, color = palette.textSub)
+                Text(
+                    if (searching) "正在联网搜索…" else "正在思考…",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = palette.textSub
+                )
             }
         } else if (msg.error.isNotBlank()) {
             Surface(color = palette.danger.copy(alpha = 0.07f), shape = RoundedCornerShape(14.dp)) {
@@ -1073,12 +1077,12 @@ private fun Composer(
                             Box(Modifier.size(64.dp)) {
                                 DataImage(image, Modifier.fillMaxSize())
                                 Box(
-                                    Modifier.align(Alignment.TopEnd).padding(2.dp).size(19.dp)
+                                    Modifier.align(Alignment.TopEnd).padding(3.dp).size(22.dp)
                                         .clip(CircleShape).background(Color.Black.copy(alpha = 0.55f))
                                         .clickable { onRemoveImage(index) },
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Rounded.Close, "移除", tint = Color.White, modifier = Modifier.size(12.dp))
+                                    Icon(Icons.Rounded.Close, "移除", tint = Color.White, modifier = Modifier.size(13.dp))
                                 }
                             }
                         }
@@ -1188,7 +1192,7 @@ private fun Composer(
                     Spacer(Modifier.weight(1f))
                     if (vision) {
                         Box(
-                            Modifier.size(38.dp).clip(RoundedCornerShape(12.dp))
+                            Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
                                 .background(palette.surfaceAlt)
                                 .border(1.dp, palette.border, RoundedCornerShape(12.dp))
                                 .clickable(enabled = images.size < 4) { onPickImages() },
@@ -1198,7 +1202,7 @@ private fun Composer(
                                 Icons.Rounded.Image,
                                 "添加图片",
                                 tint = if (images.size < 4) palette.textSub else palette.textSub.copy(alpha = 0.4f),
-                                modifier = Modifier.size(19.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
@@ -1240,7 +1244,7 @@ private fun ToolChip(
 ) {
     val palette = pal
     Row(
-        Modifier.height(34.dp)
+        Modifier.height(36.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(if (active) palette.accentSoft else palette.surfaceAlt)
             .border(
@@ -1249,7 +1253,7 @@ private fun ToolChip(
                 RoundedCornerShape(12.dp)
             )
             .clickable(onClick = onClick)
-            .padding(horizontal = 11.dp),
+            .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(

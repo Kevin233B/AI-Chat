@@ -27,7 +27,7 @@ object Tokens {
     fun estimateMessages(messages: List<Message>): Int {
         var total = 0
         for (m in messages) {
-            total += estimate(m.content) + estimate(m.reasoning) + 4 + m.images.size * 800
+            total += estimate(m.content) + estimate(m.reasoning) + estimate(m.searchContext) + 4 + m.images.size * 800
         }
         return total
     }

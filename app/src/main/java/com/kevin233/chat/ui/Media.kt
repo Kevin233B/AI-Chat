@@ -1,6 +1,8 @@
 package com.kevin233.chat.ui
 
 import android.graphics.Bitmap
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -25,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,6 +41,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.kevin233.chat.util.Images
@@ -106,6 +110,57 @@ fun RemoteImage(url: String, onClick: (() -> Unit)? = null) {
                     DotsLoading()
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun CodePreviewDialog(code: String, lang: String, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val palette = pal
+    val isSvg = lang.equals("svg", true) || code.trimStart().startsWith("<svg", true)
+    val html = if (isSvg) {
+        """<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>html,body{margin:0;padding:0;background:#fff}body{min-height:100vh;display:flex;align-items:center;justify-content:center}
+        svg{max-width:100%;max-height:calc(100vh - 40px);height:auto;width:auto}</style></head><body>$code</body></html>"""
+    } else {
+        code
+    }
+    val webView = remember {
+        WebView(context).apply {
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = false
+            settings.allowFileAccess = false
+            settings.allowContentAccess = false
+            settings.loadsImagesAutomatically = true
+            setBackgroundColor(android.graphics.Color.WHITE)
+            webViewClient = WebViewClient()
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose { webView.destroy() }
+    }
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Column(Modifier.fillMaxSize().background(Color.White)) {
+            Row(
+                Modifier.fillMaxWidth().background(palette.surface).padding(horizontal = 8.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    if (isSvg) "SVG 预览" else "HTML 预览",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = palette.text,
+                    modifier = Modifier.weight(1f).padding(start = 8.dp)
+                )
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Rounded.Close, "关闭", tint = palette.text, modifier = Modifier.size(22.dp))
+                }
+            }
+            AndroidView(
+                factory = { webView },
+                update = { it.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null) },
+                modifier = Modifier.fillMaxSize()
+            )
         }
     }
 }

@@ -19,6 +19,7 @@ data class Message(
     val content: String = "",
     val reasoning: String = "",
     val images: List<String> = emptyList(),
+    val searchContext: String = "",
     val cacheHit: Int = 0,
     val cacheMiss: Int = 0,
     val outTokens: Int = 0,
@@ -51,11 +52,19 @@ data class Conversation(
 data class Agent(
     val id: String = UUID.randomUUID().toString(),
     val name: String = "",
-    val emoji: String = "🤖",
+    val emoji: String = "",
     val tagline: String = "",
     val prompt: String = "",
     val webSearch: Boolean = false,
     val reasoning: Int = 0,
+    val builtin: Boolean = false
+)
+
+data class Skill(
+    val id: String = UUID.randomUUID().toString(),
+    val name: String = "",
+    val description: String = "",
+    val content: String = "",
     val builtin: Boolean = false
 )
 
@@ -72,6 +81,9 @@ data class Settings(
     val wallpaper: String = "none",
     val wallpaperPath: String = "",
     val glassAlpha: Float = 0.82f,
+    val searchProvider: String = "duckduckgo",
+    val searchTool: Boolean = true,
+    val customSkills: List<Skill> = emptyList(),
     val streaming: Boolean = true,
     val includeUsage: Boolean = true,
     val anthropicLongCache: Boolean = false,
