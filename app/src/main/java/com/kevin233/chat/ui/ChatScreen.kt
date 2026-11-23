@@ -787,7 +787,7 @@ private fun EmptyState(vm: ChatViewModel, modifier: Modifier = Modifier) {
                 if (config == null) palette.warn else palette.textSub
             )
             StatusPill(
-                if (profile.mode == com.kevin233.chat.data.CacheMode.NONE) "无缓存" else "缓存 ${profile.label}",
+                if (profile.mode == com.kevin233.chat.data.CacheMode.NONE) "无缓存" else "缓存已开启",
                 if (profile.mode == com.kevin233.chat.data.CacheMode.NONE) palette.textSub else palette.ok
             )
             Spacer(Modifier.weight(1f))
@@ -816,7 +816,7 @@ private fun StatusPill(text: String, color: Color) {
     ) {
         Box(Modifier.size(5.dp).background(color, CircleShape))
         Spacer(Modifier.width(5.dp))
-        Text(text, style = MaterialTheme.typography.labelSmall, color = palette.textSub, maxLines = 1)
+        Text(text, style = MaterialTheme.typography.labelSmall, color = palette.textSub, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

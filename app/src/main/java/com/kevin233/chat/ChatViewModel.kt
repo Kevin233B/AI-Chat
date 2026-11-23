@@ -295,6 +295,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     fun deleteChat(id: String) {
         conversations = conversations.filterNot { it.id == id }
+        drafts = drafts - id
         store.deleteConversation(id)
         if (activeId == id) {
             activeId = conversations.firstOrNull()?.id ?: ""
@@ -721,6 +722,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun clearAllData() {
+        drafts = emptyMap()
         store.deleteAll()
         conversations = emptyList()
         activeId = ""
