@@ -161,7 +161,7 @@ class ChatClient {
         val body = JSONObject()
         body.put("model", modelName)
         if (isOpenAi || isOpenRouter) {
-            body.put("prompt_cache_key", stableCacheKey(config.model, system, sessionKey))
+            body.put("prompt_cache_key", stableCacheKey(config.model, system))
         }
         if (isOpenRouter && sessionKey.isNotBlank()) {
             body.put("session_id", sessionKey.take(256))
@@ -676,8 +676,8 @@ class ChatClient {
         }
     }
 
-    private fun stableCacheKey(model: String, system: String, sessionKey: String): String =
-        "aichat-" + sha256(model + "|" + system + "|" + sessionKey).take(24)
+    private fun stableCacheKey(model: String, system: String): String =
+        "aichat-" + sha256(model + "|" + system).take(24)
 
     private fun sha256(text: String): String {
         val bytes = java.security.MessageDigest.getInstance("SHA-256").digest(text.toByteArray(Charsets.UTF_8))
