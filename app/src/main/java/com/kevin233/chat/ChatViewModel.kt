@@ -66,6 +66,8 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     var highlightedMessageId by mutableStateOf<String?>(null)
         private set
     var toast by mutableStateOf<String?>(null)
+    var drafts by mutableStateOf<Map<String, String>>(emptyMap())
+        private set
     var testing by mutableStateOf(false)
         private set
     var testMessage by mutableStateOf<String?>(null)
@@ -701,6 +703,13 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             is IOException -> "网络连不上。检查一下网络，或者稍后再试。\n\n技术信息：${e.message ?: ""}"
             else -> "出了点问题：${e.message ?: e.javaClass.simpleName}"
         }
+    }
+
+    fun draftFor(id: String): String = drafts[id].orEmpty()
+
+    fun setDraft(id: String, value: String) {
+        if (id.isBlank()) return
+        drafts = if (value.isBlank()) drafts - id else drafts + (id to value)
     }
 
     fun showToast(message: String) {

@@ -55,6 +55,7 @@ import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Key
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.Psychology
@@ -77,6 +78,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -425,7 +427,8 @@ private fun ChatPane(
     val conv = vm.currentConversation
     val palette = pal
     val config = vm.activeConfig
-    var input by rememberSaveable(conv?.id) { mutableStateOf("") }
+    val conversationId = conv?.id.orEmpty()
+    var input by rememberSaveable(conv?.id) { mutableStateOf(vm.draftFor(conversationId)) }
     val listState = rememberLazyListState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -470,6 +473,7 @@ private fun ChatPane(
     val branchIndex = siblings.indexOfFirst { it.id == conv?.id }.coerceAtLeast(0)
     val modelChanged = conv != null && conv.messages.isNotEmpty() && conv.modelKey.isNotBlank() &&
         config != null && conv.modelKey != config.cacheFingerprint()
+    val showJump by remember { derivedStateOf { listState.firstVisibleItemIndex > 2 } }
 
     Column(modifier.fillMaxSize().background(palette.bg).statusBarsPadding()) {
         Row(
@@ -630,10 +634,27 @@ private fun ChatPane(
                     }
                 }
             }
+            if (showJump && conv?.messages?.isNotEmpty() == true) {
+                IconButton(
+                    onClick = { scope.launch { listState.animateScrollToItem(0) } },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(14.dp)
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(palette.surface)
+                        .border(1.dp, palette.border, CircleShape)
+                ) {
+                    Icon(Icons.Rounded.KeyboardArrowDown, "回到最新", tint = palette.text, modifier = Modifier.size(21.dp))
+                }
+            }
         }
         Composer(
             value = input,
-            onValueChange = { input = it },
+            onValueChange = {
+                input = it
+                vm.setDraft(conversationId, it)
+            },
             streaming = vm.streaming,
             configured = vm.isConfigured,
             reasoning = conv?.reasoning ?: vm.settings.reasoning,
@@ -651,6 +672,7 @@ private fun ChatPane(
                 if (text.isNotEmpty() || attachments.isNotEmpty()) {
                     val sending = attachments
                     input = ""
+                    vm.setDraft(conversationId, "")
                     attachments = emptyList()
                     vm.send(text, sending)
                 }
