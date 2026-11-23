@@ -62,7 +62,7 @@ fun DataImage(
     val image = bitmap
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(3.dp))
+            .clip(RoundedCornerShape(12.dp))
             .background(pal.surfaceAlt)
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier),
         contentAlignment = Alignment.Center
@@ -98,11 +98,11 @@ fun RemoteImage(url: String, onClick: (() -> Unit)? = null) {
             contentScale = ContentScale.Fit,
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(3.dp))
+                .clip(RoundedCornerShape(12.dp))
                 .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
         )
     } else {
-        Surface(color = pal.surfaceAlt, shape = RoundedCornerShape(3.dp)) {
+        Surface(color = pal.surfaceAlt, shape = RoundedCornerShape(12.dp)) {
             Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
                 if (failed) {
                     Text("图片没加载出来", style = MaterialTheme.typography.labelSmall, color = pal.textSub)

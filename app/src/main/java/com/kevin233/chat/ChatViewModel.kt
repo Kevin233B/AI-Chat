@@ -588,7 +588,16 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 val current = conversations.firstOrNull { it.id == working.id } ?: working
                 val history = current.messages.dropLast(1)
-                val system = current.systemPrompt.ifBlank { settings.systemPrompt }
+                val system = current.systemPrompt.ifBlank { composePrompt(settings.systemPrompt, settings.anchor) }
+                if (current.systemPrompt.isBlank() || current.modelKey.isBlank()) {
+                    updateConversationById(current.id) {
+                        it.copy(
+                            systemPrompt = system,
+                            modelKey = config.cacheFingerprint(),
+                            updatedAt = System.currentTimeMillis()
+                        )
+                    }
+                }
                 client.stream(
                     config = config,
                     messages = history,
@@ -598,7 +607,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                     includeUsage = settings.includeUsage,
                     longCache = settings.anthropicLongCache,
                     geminiExplicit = settings.geminiExplicitCache,
-                    sessionKey = working.id,
+                    sessionKey = working.branchGroupId.ifBlank { working.id },
                     useStream = settings.streaming,
                     reasoning = working.reasoning,
                     webSearch = working.webSearch && nativeSearch

@@ -281,7 +281,7 @@ fun MarkdownText(
                     Column(
                         Modifier
                             .fillMaxWidth()
-                            .background(palette.codeBg, RoundedCornerShape(3.dp))
+                            .background(palette.codeBg, RoundedCornerShape(12.dp))
                     ) {
                         Row(
                             Modifier.fillMaxWidth().padding(start = 14.dp, end = 4.dp, top = 4.dp),
@@ -361,12 +361,12 @@ fun MarkdownText(
                 ) {
                     Box(
                         Modifier.padding(top = 3.dp).size(13.dp)
-                            .background(if (block.checked) palette.accent else Color.Transparent, RoundedCornerShape(2.dp))
-                            .border(1.dp, if (block.checked) palette.accent else palette.border, RoundedCornerShape(2.dp)),
+                            .background(if (block.checked) palette.accent else Color.Transparent, RoundedCornerShape(6.dp))
+                            .border(1.dp, if (block.checked) palette.accent else palette.border, RoundedCornerShape(6.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         if (block.checked) {
-                            Icon(Icons.Rounded.Check, null, tint = Color.White, modifier = Modifier.size(10.dp))
+                            Icon(Icons.Rounded.Check, null, tint = pal.onAccent, modifier = Modifier.size(10.dp))
                         }
                     }
                     Spacer(Modifier.width(9.dp))
@@ -379,7 +379,7 @@ fun MarkdownText(
                 is MdBlock.Quote -> Row {
                     Surface(
                         color = palette.border,
-                        shape = RoundedCornerShape(2.dp),
+                        shape = RoundedCornerShape(6.dp),
                         modifier = Modifier.padding(top = 2.dp, bottom = 2.dp).width(3.dp)
                     ) {}
                     Text(
@@ -407,7 +407,7 @@ fun MarkdownText(
                 is MdBlock.Table -> Column(
                     Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(3.dp))
+                        .clip(RoundedCornerShape(12.dp))
                         .background(palette.surfaceAlt)
                 ) {
                     block.rows.forEachIndexed { rowIndex, cells ->

@@ -145,115 +145,128 @@ private fun SettingsHome(vm: ChatViewModel, onOpen: (SettingsPage) -> Unit) {
     val conv = vm.currentConversation
     val settings = vm.settings
     val profile = Presets.cacheProfile(config)
-    val convHit = conv?.hitTokens ?: 0
-    val convMiss = conv?.missTokens ?: 0
-    val convTotal = convHit + convMiss
     val totalAll = settings.totalHit + settings.totalMiss
     val totalRate = if (totalAll > 0) settings.totalHit.toFloat() / totalAll else 0f
     val promptTokens = Tokens.estimate(conv?.systemPrompt ?: composePrompt(settings.systemPrompt, settings.anchor))
-    val lastAnswer = conv?.messages?.lastOrNull { !it.isUser }
-    val lastTotal = (lastAnswer?.cacheHit ?: 0) + (lastAnswer?.cacheMiss ?: 0)
+    val prefixTokens = promptTokens + Tokens.estimateMessages(conv?.messages ?: emptyList())
 
     SettingsPageFrame("设置", onBack = { vm.screen = Screen.CHAT }) {
         PageBody {
             item {
-                Column(Modifier.fillMaxWidth().padding(top = 6.dp)) {
-                    Kicker("SETTINGS / 本地配置")
-                    Spacer(Modifier.height(6.dp))
+                Column(Modifier.fillMaxWidth().padding(top = 4.dp)) {
                     Text("设置", style = MaterialTheme.typography.displaySmall, color = palette.text)
-                    Spacer(Modifier.height(16.dp))
-                    Hairline()
-                    Spacer(Modifier.height(16.dp))
-                    Row(
-                        Modifier.fillMaxWidth().clickable { onOpen(SettingsPage.API) },
-                        verticalAlignment = Alignment.Top
-                    ) {
+                }
+            }
+            item {
+                Column(
+                    Modifier.fillMaxWidth()
+                        .background(palette.surface, RoundedCornerShape(20.dp))
+                        .border(1.dp, palette.border, RoundedCornerShape(20.dp))
+                        .clickable { onOpen(SettingsPage.API) }
+                        .padding(16.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier.size(44.dp).background(palette.accentSoft, RoundedCornerShape(14.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Rounded.Key, null, tint = palette.accent, modifier = Modifier.size(21.dp))
+                        }
+                        Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Kicker("MODEL / 当前模型")
-                            Spacer(Modifier.height(5.dp))
                             Text(
                                 config?.name?.ifBlank { "自定义模型" } ?: "还没有连接模型",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontSize = 20.sp,
+                                style = MaterialTheme.typography.titleMedium,
                                 color = palette.text
                             )
-                            Spacer(Modifier.height(3.dp))
+                            Spacer(Modifier.height(2.dp))
                             Text(
-                                config?.model ?: "去添加一个 API，1 分钟就能用",
+                                config?.model ?: "点这里添加一个 API",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = palette.textSub,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                            Spacer(Modifier.height(7.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                StatusDot(if (vm.isConfigured) "已连接" else "未配置", vm.isConfigured)
-                                if (config?.vision == true) StatusDot("支持图片", true)
-                                if (Presets.supportsWebSearch(config)) StatusDot("原生联网", true)
-                            }
                         }
-                        Text("更改 ↗", style = MaterialTheme.typography.labelMedium, color = palette.accent)
+                        Text("管理", style = MaterialTheme.typography.labelMedium, color = palette.accent)
                     }
-                    Spacer(Modifier.height(16.dp))
-                    Hairline()
-                    Spacer(Modifier.height(18.dp))
-                    Row(Modifier.fillMaxWidth().clickable { onOpen(SettingsPage.CACHE) }, verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            "${(totalRate * 100).toInt()}%",
-                            style = MaterialTheme.typography.displaySmall,
-                            fontSize = 42.sp,
-                            color = if (totalRate >= 0.3f) palette.ok else palette.text
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.padding(bottom = 4.dp)) {
-                            Kicker("CACHE / 输入命中")
-                            Spacer(Modifier.height(3.dp))
-                            Text(
-                                "READ ${Tokens.format(settings.totalHit.toInt())} TOKENS",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = palette.textSub
-                            )
-                        }
-                        Spacer(Modifier.weight(1f))
-                        Text("查看 →", style = MaterialTheme.typography.labelMedium, color = palette.accent)
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        StatusDot(if (vm.isConfigured) "已连接" else "未配置", vm.isConfigured)
+                        if (config?.vision == true) StatusDot("支持图片", true)
+                        if (Presets.supportsReasoning(config)) StatusDot("支持思考", true)
                     }
-                    Spacer(Modifier.height(10.dp))
-                    val progress = if (profile.minPrefix <= 0) 1f else (promptTokens.toFloat() / profile.minPrefix).coerceIn(0f, 1f)
-                    Box(Modifier.fillMaxWidth().height(2.dp).background(palette.border)) {
-                        Box(Modifier.fillMaxWidth(progress).height(2.dp).background(if (progress >= 1f) palette.ok else palette.accent))
-                    }
-                    Spacer(Modifier.height(7.dp))
-                    Text(
-                        when {
-                            convTotal > 0 && convHit > 0 -> "本次对话命中 ${convHit * 100 / convTotal}%"
-                            lastAnswer != null && lastTotal > 0 -> "上一轮未命中，点开查看原因"
-                            profile.minPrefix > 0 && promptTokens < profile.minPrefix -> "前缀还差 ${profile.minPrefix - promptTokens} token"
-                            else -> "前缀已稳定，继续聊会更省"
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = palette.textSub
-                    )
-                    Spacer(Modifier.height(24.dp))
                 }
             }
-
-            item { GroupLabel("01 / 角色与资料") }
+            item {
+                Column(
+                    Modifier.fillMaxWidth()
+                        .background(palette.surface, RoundedCornerShape(20.dp))
+                        .border(1.dp, palette.border, RoundedCornerShape(20.dp))
+                        .clickable { onOpen(SettingsPage.CACHE) }
+                        .padding(16.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("缓存命中", style = MaterialTheme.typography.labelMedium, color = palette.textSub)
+                            Spacer(Modifier.height(2.dp))
+                            Row(verticalAlignment = Alignment.Bottom) {
+                                Text(
+                                    if (totalAll > 0) "${(totalRate * 100).toInt()}%" else "还没有数据",
+                                    style = if (totalAll > 0) MaterialTheme.typography.displaySmall else MaterialTheme.typography.titleLarge,
+                                    color = if (totalRate >= 0.3f) palette.ok else palette.text
+                                )
+                                if (totalAll > 0) {
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        "共 ${Tokens.format(settings.totalHit.toInt())} 命中",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = palette.textSub,
+                                        modifier = Modifier.padding(bottom = 5.dp)
+                                    )
+                                }
+                            }
+                        }
+                        Box(
+                            Modifier.size(40.dp).background(palette.ok.copy(alpha = 0.12f), RoundedCornerShape(13.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(CacheStack, null, tint = palette.ok, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Box(
+                        Modifier.fillMaxWidth().height(8.dp).background(palette.surfaceAlt, RoundedCornerShape(50))
+                    ) {
+                        Box(
+                            Modifier.fillMaxWidth(totalRate.coerceIn(0f, 1f)).height(8.dp)
+                                .background(palette.ok, RoundedCornerShape(50))
+                        )
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            if (profile.minPrefix > 0) "前缀约 $prefixTokens / ${profile.minPrefix} token" else profile.label,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = palette.textSub,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text("看明细", style = MaterialTheme.typography.labelMedium, color = palette.accent)
+                    }
+                }
+            }
+            item { SectionLabel("聊天设置") }
             item {
                 GroupCard {
-                    NavRow(Icons.Rounded.Groups, "智能体与技能", "${vm.agents.size} 个角色 / ${vm.skills.size} 个技能") {
+                    NavRow(Icons.Rounded.Groups, "智能体与技能", "${vm.agents.size} 个智能体，${vm.skills.size} 个技能") {
                         vm.screen = Screen.AGENTS
                     }
                     RowDivider()
-                    NavRow(Icons.Rounded.Description, "个性与固定资料", "约 $promptTokens TOKENS") {
+                    NavRow(Icons.Rounded.Description, "人设与固定资料", "约 $promptTokens token，只影响新对话") {
                         onOpen(SettingsPage.PROMPT)
                     }
-                }
-            }
-
-            item { GroupLabel("02 / 对话") }
-            item {
-                GroupCard {
-                    NavRow(Icons.Rounded.Tune, "生成设置", "TEMP ${settings.temperature} / MAX ${settings.maxTokens}") {
+                    RowDivider()
+                    NavRow(Icons.Rounded.Tune, "生成设置", "温度 ${settings.temperature}，最多 ${settings.maxTokens} token") {
                         onOpen(SettingsPage.GENERATION)
                     }
                     RowDivider()
@@ -262,35 +275,28 @@ private fun SettingsHome(vm: ChatViewModel, onOpen: (SettingsPage) -> Unit) {
                     }
                 }
             }
-
-            item { GroupLabel("03 / 界面") }
+            item { SectionLabel("外观与数据") }
             item {
                 GroupCard {
-                    NavRow(Icons.Rounded.Palette, "外观", "${themeLabel(settings.themeMode)} / ${accentLabel(settings.accent)}") {
+                    NavRow(Icons.Rounded.Palette, "外观", "${themeLabel(settings.themeMode)}，${accentLabel(settings.accent)}") {
                         onOpen(SettingsPage.APPEARANCE)
                     }
-                }
-            }
-
-            item { GroupLabel("04 / 数据") }
-            item {
-                GroupCard {
-                    NavRow(Icons.Rounded.Archive, "数据与备份", "${vm.conversations.size} 个对话，只存本机") {
+                    RowDivider()
+                    NavRow(Icons.Rounded.Archive, "数据与备份", "${vm.conversations.size} 个对话，只存在本机") {
                         onOpen(SettingsPage.DATA)
                     }
                     RowDivider()
-                    NavRow(Icons.Rounded.HelpOutline, "帮助与关于", "FAQ / 新手引导 / LICENSE") {
+                    NavRow(Icons.Rounded.HelpOutline, "帮助与关于", "使用说明、新手引导和开源协议") {
                         onOpen(SettingsPage.HELP)
                     }
                 }
             }
-
             item {
                 Text(
-                    "LOCAL ONLY / 聊天与 Key 只保存在本机",
+                    "聊天记录和 API Key 只保存在这台手机上",
                     style = MaterialTheme.typography.labelSmall,
                     color = palette.textSub,
-                    modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 28.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 28.dp),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
             }
@@ -306,7 +312,7 @@ private fun ApiSettingsPage(vm: ChatViewModel, onBack: () -> Unit) {
         PageBody {
             if (active == null) {
                 item {
-                    Surface(color = palette.surface, shape = RoundedCornerShape(3.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
+                    Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
                         Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             InitialBadge("AI", 52.dp)
                             Spacer(Modifier.height(12.dp))
@@ -321,7 +327,7 @@ private fun ApiSettingsPage(vm: ChatViewModel, onBack: () -> Unit) {
                 item {
                     Surface(
                         color = palette.surface,
-                        shape = RoundedCornerShape(3.dp),
+                        shape = RoundedCornerShape(16.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, palette.border),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -370,7 +376,7 @@ private fun ApiSettingsPage(vm: ChatViewModel, onBack: () -> Unit) {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Box(
-                                    Modifier.size(34.dp).clip(RoundedCornerShape(3.dp)).background(palette.surfaceAlt),
+                                    Modifier.size(34.dp).clip(RoundedCornerShape(16.dp)).background(palette.surfaceAlt),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(Icons.Rounded.Memory, null, tint = palette.textSub, modifier = Modifier.size(18.dp))
@@ -390,8 +396,8 @@ private fun ApiSettingsPage(vm: ChatViewModel, onBack: () -> Unit) {
 
             item {
                 Row(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(3.dp))
-                        .border(1.dp, palette.border, RoundedCornerShape(3.dp))
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                        .border(1.dp, palette.border, RoundedCornerShape(16.dp))
                         .clickable { vm.editingConfig = ApiConfig(name = "", type = ApiTypes.OPENAI) }
                         .padding(vertical = 14.dp),
                     horizontalArrangement = Arrangement.Center,
@@ -404,7 +410,7 @@ private fun ApiSettingsPage(vm: ChatViewModel, onBack: () -> Unit) {
             }
 
             item {
-                Surface(color = palette.surface, shape = RoundedCornerShape(3.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
+                Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
                     Column(Modifier.padding(14.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(CacheStack, null, tint = palette.accent, modifier = Modifier.size(17.dp))
@@ -440,13 +446,14 @@ private fun CacheSettingsPage(vm: ChatViewModel, onBack: () -> Unit, onEditPromp
     val totalAll = settings.totalHit + settings.totalMiss
     val totalRate = if (totalAll > 0) settings.totalHit.toFloat() / totalAll else 0f
     val promptTokens = Tokens.estimate(conv?.systemPrompt ?: composePrompt(settings.systemPrompt, settings.anchor))
+    val prefixTokens = promptTokens + Tokens.estimateMessages(conv?.messages ?: emptyList())
     val lastAnswer = conv?.messages?.lastOrNull { !it.isUser }
     val lastTotal = (lastAnswer?.cacheHit ?: 0) + (lastAnswer?.cacheMiss ?: 0)
 
     SettingsPageFrame("缓存优化", "命中越高，花得越少", onBack) {
         PageBody {
             item {
-                Surface(color = palette.surface, shape = RoundedCornerShape(3.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
+                Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
                     Column(Modifier.padding(18.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
@@ -481,7 +488,7 @@ private fun CacheSettingsPage(vm: ChatViewModel, onBack: () -> Unit, onEditPromp
                             )
                         }
                         Spacer(Modifier.height(8.dp))
-                        val progress = if (profile.minPrefix <= 0) 1f else (promptTokens.toFloat() / profile.minPrefix).coerceIn(0f, 1f)
+                        val progress = if (profile.minPrefix <= 0) 1f else (prefixTokens.toFloat() / profile.minPrefix).coerceIn(0f, 1f)
                         Box(Modifier.fillMaxWidth().height(6.dp).clip(CircleShape).background(palette.border)) {
                             Box(
                                 Modifier.fillMaxWidth(progress).height(6.dp).clip(CircleShape)
@@ -490,7 +497,7 @@ private fun CacheSettingsPage(vm: ChatViewModel, onBack: () -> Unit, onEditPromp
                         }
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            "当前前缀约 $promptTokens token，继续聊会越来越容易命中",
+                            "当前前缀约 $prefixTokens token，继续聊会越来越容易命中",
                             style = MaterialTheme.typography.labelSmall,
                             color = palette.textSub
                         )
@@ -500,7 +507,7 @@ private fun CacheSettingsPage(vm: ChatViewModel, onBack: () -> Unit, onEditPromp
 
             if (lastAnswer != null && lastTotal > 0) {
                 item {
-                    Surface(color = palette.accentSoft, shape = RoundedCornerShape(3.dp)) {
+                    Surface(color = palette.accentSoft, shape = RoundedCornerShape(16.dp)) {
                         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.Top) {
                             Icon(CacheStack, null, tint = palette.accent, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(8.dp))
@@ -520,7 +527,7 @@ private fun CacheSettingsPage(vm: ChatViewModel, onBack: () -> Unit, onEditPromp
 
             item { GroupLabel("这个模型的方案") }
             item {
-                Surface(color = palette.surface, shape = RoundedCornerShape(3.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
+                Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
                     Column(Modifier.padding(14.dp)) {
                         profile.tips.forEach { tip ->
                             Row(Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.Top) {
@@ -589,7 +596,7 @@ private fun CacheSettingsPage(vm: ChatViewModel, onBack: () -> Unit, onEditPromp
             }
 
             item {
-                Surface(color = palette.surfaceAlt, shape = RoundedCornerShape(3.dp)) {
+                Surface(color = palette.surfaceAlt, shape = RoundedCornerShape(16.dp)) {
                     Column(Modifier.padding(14.dp)) {
                         Text(
                             "想再省一点？把长期不变的资料放进固定资料，前缀一大，命中率就稳了。",
@@ -615,7 +622,7 @@ private fun GenerationSettingsPage(vm: ChatViewModel, onBack: () -> Unit) {
     SettingsPageFrame("生成设置", "回答的聪明程度和长短", onBack) {
         PageBody {
             item {
-                Surface(color = palette.surface, shape = RoundedCornerShape(3.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
+                Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
                     Column(Modifier.padding(18.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Rounded.Psychology, null, tint = palette.accent, modifier = Modifier.size(18.dp))
@@ -630,7 +637,7 @@ private fun GenerationSettingsPage(vm: ChatViewModel, onBack: () -> Unit) {
                         }
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "这里是新对话的默认值。当前对话可以直接在输入框上方调，越深越聪明，也越慢越费。",
+                            "这里是新对话的默认值。当前对话可以直接在输入框下方调，越深越聪明，也越慢越费。",
                             style = MaterialTheme.typography.labelSmall,
                             color = palette.textSub
                         )
@@ -657,7 +664,7 @@ private fun GenerationSettingsPage(vm: ChatViewModel, onBack: () -> Unit) {
             }
 
             item {
-                Surface(color = palette.surface, shape = RoundedCornerShape(3.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
+                Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
                     Column(Modifier.padding(18.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("回答风格", style = MaterialTheme.typography.bodyLarge, color = palette.text, modifier = Modifier.weight(1f))
@@ -681,7 +688,7 @@ private fun GenerationSettingsPage(vm: ChatViewModel, onBack: () -> Unit) {
             }
 
             item {
-                Surface(color = palette.surface, shape = RoundedCornerShape(3.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
+                Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
                     Column(Modifier.padding(18.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("最长回复", style = MaterialTheme.typography.bodyLarge, color = palette.text, modifier = Modifier.weight(1f))
@@ -728,7 +735,7 @@ private fun GenerationSettingsPage(vm: ChatViewModel, onBack: () -> Unit) {
                     SettingRow(
                         icon = Icons.Rounded.Public,
                         title = "联网搜索",
-                        subtitle = "在聊天输入框上方按对话开关，支持 Claude、Gemini、OpenRouter 和通义",
+                        subtitle = "在聊天输入框下方按对话开关，支持 Claude、Gemini、OpenRouter 和通义",
                         trailing = { Text("去聊天", color = palette.accent, style = MaterialTheme.typography.labelMedium) },
                         onClick = { vm.screen = Screen.CHAT }
                     )
@@ -736,7 +743,7 @@ private fun GenerationSettingsPage(vm: ChatViewModel, onBack: () -> Unit) {
             }
 
             item {
-                Surface(color = palette.surface, shape = RoundedCornerShape(3.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
+                Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
                     Column(Modifier.padding(18.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Rounded.Public, null, tint = palette.accent, modifier = Modifier.size(18.dp))
@@ -861,32 +868,37 @@ private fun AppearanceSettingsPage(vm: ChatViewModel, onBack: () -> Unit) {
                 )
             }
             Spacer(Modifier.height(20.dp))
-            Kicker("ACCENT / 强调色")
+            SectionLabel("强调色")
             Spacer(Modifier.height(8.dp))
-            val accents = listOf(
-                Color(0xFFE4502A), Color(0xFF2F5BEA), Color(0xFF0E7A5F), Color(0xFF8A3FFC), Color(0xFFB07A12)
-            )
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                accents.forEachIndexed { index, color ->
-                    Box(
-                        Modifier.size(30.dp)
-                            .background(color, RoundedCornerShape(2.dp))
-                            .border(
-                                if (settings.accent == index) 2.dp else 1.dp,
-                                if (settings.accent == index) palette.text else palette.border,
-                                RoundedCornerShape(2.dp)
-                            )
-                            .clickable { vm.updateSettings { it.copy(accent = index) } },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (settings.accent == index) {
-                            Icon(Icons.Rounded.Check, null, tint = Color.White, modifier = Modifier.size(15.dp))
+                AccentSwatches.forEachIndexed { index, color ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            Modifier.size(34.dp)
+                                .background(color, RoundedCornerShape(12.dp))
+                                .border(
+                                    if (settings.accent == index) 2.dp else 1.dp,
+                                    if (settings.accent == index) palette.text else palette.border,
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .clickable { vm.updateSettings { it.copy(accent = index) } },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (settings.accent == index) {
+                                Icon(Icons.Rounded.Check, null, tint = palette.onAccent, modifier = Modifier.size(16.dp))
+                            }
                         }
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            AccentLabels[index],
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (settings.accent == index) palette.text else palette.textSub
+                        )
                     }
                 }
             }
             Spacer(Modifier.height(20.dp))
-            Kicker("THEME / 明暗")
+            SectionLabel("明暗模式")
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("跟随系统" to 0, "浅色" to 1, "深色" to 2).forEach { (label, mode) ->
@@ -895,58 +907,54 @@ private fun AppearanceSettingsPage(vm: ChatViewModel, onBack: () -> Unit) {
                     }
                 }
             }
-            Spacer(Modifier.height(16.dp))
-            Text("预览", style = MaterialTheme.typography.labelMedium, color = palette.textSub)
+            Spacer(Modifier.height(18.dp))
+            SectionLabel("预览")
             Spacer(Modifier.height(8.dp))
-            Surface(
-                color = palette.bg,
-                shape = RoundedCornerShape(3.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)
+            Column(
+                Modifier.fillMaxWidth()
+                    .background(palette.surface, RoundedCornerShape(18.dp))
+                    .border(1.dp, palette.border, RoundedCornerShape(18.dp))
+                    .padding(16.dp)
             ) {
-                Column(Modifier.fillMaxWidth().padding(16.dp)) {
-                    Row(horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                        Text("YOU / 14:20", style = MaterialTheme.typography.labelSmall, color = palette.textSub)
-                        Spacer(Modifier.width(8.dp))
-                    }
-                    Spacer(Modifier.height(6.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        Row(
-                            Modifier.background(palette.surface, RoundedCornerShape(2.dp))
-                                .border(1.dp, palette.border, RoundedCornerShape(2.dp))
-                        ) {
-                            Box(Modifier.width(2.dp).height(38.dp).background(palette.accent))
-                            Text(
-                                "今天适合出门吗？",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = palette.text,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(14.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(4.dp).background(palette.accent))
-                        Spacer(Modifier.width(6.dp))
-                        Text("AI / 14:20", style = MaterialTheme.typography.labelSmall, color = palette.text)
-                    }
-                    Spacer(Modifier.height(7.dp))
-                    Row(Modifier.fillMaxWidth().height(44.dp)) {
-                        Box(Modifier.width(2.dp).fillMaxHeight().background(palette.border))
-                        Spacer(Modifier.width(10.dp))
-                        Text(
-                            "我帮你看看天气，顺便给你一条路线。",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = palette.text
-                        )
-                    }
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("你", style = MaterialTheme.typography.labelMedium, color = palette.accent)
+                    Spacer(Modifier.width(6.dp))
+                    Text("14:20", style = MaterialTheme.typography.labelSmall, color = palette.textSub)
                 }
+                Spacer(Modifier.height(5.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    Text(
+                        "今天适合出门吗？",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = palette.userBubbleText,
+                        modifier = Modifier
+                            .background(palette.userBubble, RoundedCornerShape(16.dp, 16.dp, 5.dp, 16.dp))
+                            .padding(horizontal = 13.dp, vertical = 9.dp)
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(6.dp).background(palette.accent, CircleShape))
+                    Spacer(Modifier.width(6.dp))
+                    Text("AI 助手", style = MaterialTheme.typography.labelMedium, color = palette.text)
+                    Spacer(Modifier.width(6.dp))
+                    Text("14:20", style = MaterialTheme.typography.labelSmall, color = palette.textSub)
+                }
+                Spacer(Modifier.height(5.dp))
+                Text(
+                    "我帮你看看天气，顺便给你一条路线。",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = palette.text,
+                    modifier = Modifier
+                        .background(palette.bg, RoundedCornerShape(4.dp, 18.dp, 18.dp, 18.dp))
+                        .border(1.dp, palette.border, RoundedCornerShape(4.dp, 18.dp, 18.dp, 18.dp))
+                        .padding(horizontal = 13.dp, vertical = 10.dp)
+                )
             }
-            Spacer(Modifier.height(12.dp))
-            Text(
-                "跟随系统时会自动跟着手机的深色模式切换。深色模式会把壁纸压暗一点，保证文字看得清。",
-                style = MaterialTheme.typography.bodySmall,
-                color = palette.textSub
-            )
             Spacer(Modifier.height(24.dp))
         }
     }
@@ -969,12 +977,12 @@ private fun WallpaperSwatch(
         }
         Box(
             Modifier.size(width = 64.dp, height = 82.dp)
-                .clip(RoundedCornerShape(3.dp))
+                .clip(RoundedCornerShape(16.dp))
                 .then(fill)
                 .border(
                     if (selected) 2.dp else 1.dp,
                     if (selected) palette.accent else palette.border,
-                    RoundedCornerShape(3.dp)
+                    RoundedCornerShape(16.dp)
                 )
                 .clickable(onClick = onClick),
             contentAlignment = Alignment.Center
@@ -987,7 +995,7 @@ private fun WallpaperSwatch(
                         Modifier.size(24.dp).clip(CircleShape).background(palette.accent),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Rounded.Check, null, tint = Color.White, modifier = Modifier.size(15.dp))
+                        Icon(Icons.Rounded.Check, null, tint = palette.onAccent, modifier = Modifier.size(15.dp))
                     }
                 }
             }
@@ -1016,7 +1024,7 @@ private fun DataSettingsPage(vm: ChatViewModel, onBack: () -> Unit) {
     SettingsPageFrame("数据与备份", "换手机、清理、恢复都在这", onBack) {
         PageBody {
             item {
-                Surface(color = palette.surface, shape = RoundedCornerShape(3.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
+                Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
                     Row(Modifier.padding(18.dp)) {
                         Column(Modifier.weight(1f)) {
                             Text("${vm.conversations.size}", style = MaterialTheme.typography.headlineMedium, color = palette.text)
@@ -1130,7 +1138,7 @@ private fun HelpSettingsPage(vm: ChatViewModel, onBack: () -> Unit) {
 
             item { GroupLabel("常见问题") }
             item {
-                Surface(color = palette.surface, shape = RoundedCornerShape(3.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
+                Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
                     Column {
                         faqs.forEachIndexed { index, pair ->
                             Column(Modifier.fillMaxWidth().clickable { expanded = if (expanded == index) -1 else index }.padding(horizontal = 14.dp, vertical = 12.dp)) {
@@ -1161,7 +1169,7 @@ private fun HelpSettingsPage(vm: ChatViewModel, onBack: () -> Unit) {
             }
 
             item {
-                Surface(color = palette.surface, shape = RoundedCornerShape(3.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
+                Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
                     Column(Modifier.padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         AppLogo(50.dp, 15.dp)
                         Spacer(Modifier.height(10.dp))
@@ -1196,29 +1204,28 @@ private fun SettingsPageFrame(
     val palette = pal
     Column(Modifier.fillMaxSize().background(palette.bg).statusBarsPadding()) {
         Row(
-            Modifier.fillMaxWidth().height(66.dp).padding(horizontal = 10.dp),
+            Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.Rounded.ArrowBack, "返回", tint = palette.text, modifier = Modifier.size(21.dp))
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier.size(38.dp).clip(CircleShape).background(palette.surfaceAlt)
+            ) {
+                Icon(Icons.Rounded.ArrowBack, "返回", tint = palette.text, modifier = Modifier.size(20.dp))
             }
-            Spacer(Modifier.width(4.dp))
-            Column(Modifier.weight(1f)) {
-                Kicker("SETTINGS / 本地配置")
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    title,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = palette.text,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
+            Spacer(Modifier.width(10.dp))
+            Text(
+                title,
+                style = MaterialTheme.typography.headlineSmall,
+                color = palette.text,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
             if (action != null) {
                 Box(Modifier.padding(end = 6.dp)) { action() }
             }
         }
-        Hairline()
         Box(Modifier.fillMaxWidth().weight(1f)) {
             content()
         }
@@ -1230,8 +1237,8 @@ private fun PageBody(content: LazyListScope.() -> Unit) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         LazyColumn(
             modifier = Modifier.fillMaxHeight().widthIn(max = 760.dp).fillMaxWidth(),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 48.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 44.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
             content = content
         )
     }
@@ -1239,29 +1246,23 @@ private fun PageBody(content: LazyListScope.() -> Unit) {
 
 @Composable
 private fun GroupLabel(text: String) {
-    Row(
-        Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 0.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(Modifier.size(3.dp).height(14.dp).background(pal.accent))
-        Spacer(Modifier.width(8.dp))
-        Text(text, style = MaterialTheme.typography.labelMedium, color = pal.text)
-    }
+    SectionLabel(text, Modifier.fillMaxWidth())
 }
 
 @Composable
 private fun GroupCard(content: @Composable ColumnScope.() -> Unit) {
     val palette = pal
     Column(
-        Modifier.fillMaxWidth().background(palette.surface, RoundedCornerShape(3.dp))
-            .border(1.dp, palette.border, RoundedCornerShape(3.dp)),
+        Modifier.fillMaxWidth().background(palette.surface, RoundedCornerShape(20.dp))
+            .border(1.dp, palette.border, RoundedCornerShape(20.dp))
+            .padding(vertical = 4.dp),
         content = content
     )
 }
 
 @Composable
 private fun RowDivider() {
-    HorizontalDivider(color = pal.border, modifier = Modifier.padding(start = 48.dp))
+    HorizontalDivider(color = pal.border, modifier = Modifier.padding(start = 64.dp))
 }
 
 @Composable
@@ -1273,25 +1274,49 @@ private fun NavRow(
 ) {
     val palette = pal
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 14.dp),
+        Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, null, tint = palette.accent, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge, fontSize = 15.sp, color = palette.text)
-            Spacer(Modifier.height(2.dp))
-            Text(subtitle, style = MaterialTheme.typography.labelSmall, color = palette.textSub, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Box(
+            Modifier.size(38.dp).background(palette.accentSoft, RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, null, tint = palette.accent, modifier = Modifier.size(19.dp))
         }
-        Text("↗", style = MaterialTheme.typography.labelMedium, color = palette.textSub)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, color = palette.text)
+            Spacer(Modifier.height(1.dp))
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = palette.textSub,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        Icon(
+            Icons.Rounded.ChevronRight,
+            null,
+            tint = palette.textSub.copy(alpha = 0.65f),
+            modifier = Modifier.size(18.dp)
+        )
     }
 }
 
 @Composable
 private fun StatusDot(text: String, ok: Boolean) {
     val palette = pal
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(4.dp).background(if (ok) palette.ok else palette.warn))
+    Row(
+        Modifier
+            .background(if (ok) palette.ok.copy(alpha = 0.1f) else palette.warn.copy(alpha = 0.1f), RoundedCornerShape(50))
+            .padding(horizontal = 9.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.size(5.dp).background(if (ok) palette.ok else palette.warn, CircleShape))
         Spacer(Modifier.width(5.dp))
         Text(text, style = MaterialTheme.typography.labelSmall, color = if (ok) palette.ok else palette.warn)
     }
@@ -1300,11 +1325,11 @@ private fun StatusDot(text: String, ok: Boolean) {
 @Composable
 private fun PrimaryAction(text: String, onClick: () -> Unit) {
     Box(
-        Modifier.fillMaxWidth().background(pal.accent, RoundedCornerShape(3.dp)).clickable(onClick = onClick)
-            .padding(vertical = 14.dp),
+        Modifier.fillMaxWidth().background(pal.accent, RoundedCornerShape(14.dp)).clickable(onClick = onClick)
+            .padding(vertical = 13.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(text, color = Color.White, style = MaterialTheme.typography.labelMedium)
+        Text(text, color = pal.onAccent, style = MaterialTheme.typography.labelLarge)
     }
 }
 
@@ -1330,8 +1355,7 @@ private fun themeLabel(mode: Int): String = when (mode) {
     else -> "跟随系统"
 }
 
-private fun accentLabel(index: Int): String = listOf("EMBER", "COBALT", "PINE", "PLUM", "OCHRE")
-    .getOrElse(index) { "EMBER" }
+private fun accentLabel(index: Int): String = AccentLabels.getOrElse(index) { AccentLabels.first() }
 
 private fun maskKey(key: String): String {
     if (key.isBlank()) return "还没填 Key"
@@ -1387,7 +1411,7 @@ private fun ConfigEditorScreen(vm: ChatViewModel) {
                 onValueChange = { draft = draft.copy(name = it) },
                 label = { Text("起个名字") },
                 singleLine = true,
-                shape = RoundedCornerShape(3.dp),
+                shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(10.dp))
@@ -1405,7 +1429,7 @@ private fun ConfigEditorScreen(vm: ChatViewModel) {
                 label = { Text("接口地址") },
                 placeholder = { Text("https://api.deepseek.com/v1") },
                 singleLine = true,
-                shape = RoundedCornerShape(3.dp),
+                shape = RoundedCornerShape(16.dp),
                 supportingText = { Text("大多数填到 /v1 结尾，中转站按它给的地址填") },
                 modifier = Modifier.fillMaxWidth()
             )
@@ -1416,7 +1440,7 @@ private fun ConfigEditorScreen(vm: ChatViewModel) {
                 label = { Text("API Key") },
                 placeholder = { Text("sk-...") },
                 singleLine = true,
-                shape = RoundedCornerShape(3.dp),
+                shape = RoundedCornerShape(16.dp),
                 visualTransformation = if (showKey) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
                     IconButton(onClick = { showKey = !showKey }) {
@@ -1437,7 +1461,7 @@ private fun ConfigEditorScreen(vm: ChatViewModel) {
                 label = { Text("模型名") },
                 placeholder = { Text("deepseek-chat") },
                 singleLine = true,
-                shape = RoundedCornerShape(3.dp),
+                shape = RoundedCornerShape(16.dp),
                 trailingIcon = {
                     TextButton(onClick = {
                         vm.loadModels(draft)
@@ -1453,7 +1477,7 @@ private fun ConfigEditorScreen(vm: ChatViewModel) {
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(12.dp))
-            Surface(color = palette.surface, shape = RoundedCornerShape(3.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
+            Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
                 Column {
                     SettingRow(
                         icon = Icons.Rounded.Image,
@@ -1478,7 +1502,7 @@ private fun ConfigEditorScreen(vm: ChatViewModel) {
             Spacer(Modifier.height(14.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Box(
-                    Modifier.weight(1f).clip(RoundedCornerShape(3.dp)).border(1.dp, palette.border, RoundedCornerShape(3.dp))
+                    Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).border(1.dp, palette.border, RoundedCornerShape(16.dp))
                         .clickable { vm.testConfig(draft) }.padding(vertical = 13.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -1491,7 +1515,7 @@ private fun ConfigEditorScreen(vm: ChatViewModel) {
                     }
                 }
                 Box(
-                    Modifier.weight(1f).clip(RoundedCornerShape(3.dp)).background(palette.accent).clickable {
+                    Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(palette.accent).clickable {
                         if (draft.name.isBlank()) draft = draft.copy(name = "自定义")
                         if (draft.baseUrl.isBlank() || draft.model.isBlank()) {
                             vm.showToast("接口地址和模型名要填上")
@@ -1504,7 +1528,7 @@ private fun ConfigEditorScreen(vm: ChatViewModel) {
                     }.padding(vertical = 13.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("保存并使用", color = Color.White, style = MaterialTheme.typography.labelLarge)
+                    Text("保存并使用", color = pal.onAccent, style = MaterialTheme.typography.labelLarge)
                 }
             }
             vm.testMessage?.let { msg ->
@@ -1512,7 +1536,7 @@ private fun ConfigEditorScreen(vm: ChatViewModel) {
                 val ok = msg.startsWith("连接成功")
                 Surface(
                     color = if (ok) palette.ok.copy(alpha = 0.08f) else palette.danger.copy(alpha = 0.08f),
-                    shape = RoundedCornerShape(3.dp)
+                    shape = RoundedCornerShape(16.dp)
                 ) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
                         Icon(
@@ -1529,7 +1553,7 @@ private fun ConfigEditorScreen(vm: ChatViewModel) {
             val preset = Presets.byId(draft.presetId)
             if (preset != null) {
                 Spacer(Modifier.height(12.dp))
-                Surface(color = palette.surfaceAlt, shape = RoundedCornerShape(3.dp)) {
+                Surface(color = palette.surfaceAlt, shape = RoundedCornerShape(16.dp)) {
                     Column(Modifier.padding(12.dp)) {
                         Text(preset.name, style = MaterialTheme.typography.labelLarge, color = palette.text)
                         if (preset.note.isNotBlank()) {
@@ -1558,7 +1582,7 @@ private fun ConfigEditorScreen(vm: ChatViewModel) {
                     "删除这个配置",
                     style = MaterialTheme.typography.labelLarge,
                     color = palette.danger,
-                    modifier = Modifier.clip(RoundedCornerShape(3.dp)).clickable {
+                    modifier = Modifier.clip(RoundedCornerShape(16.dp)).clickable {
                         vm.deleteConfig(draft.id)
                         vm.editingConfig = null
                         vm.showToast("已删除")
@@ -1653,7 +1677,7 @@ private fun PromptEditorScreen(vm: ChatViewModel, onBack: () -> Unit) {
                 )
             }
             Spacer(Modifier.height(10.dp))
-            Surface(color = palette.surface, shape = RoundedCornerShape(3.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
+            Surface(color = palette.surface, shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)) {
                 BasicTextField(
                     value = if (tab == 0) text else anchorText,
                     onValueChange = { if (tab == 0) text = it else anchorText = it },
@@ -1687,7 +1711,7 @@ private fun PromptEditorScreen(vm: ChatViewModel, onBack: () -> Unit) {
                             row.forEach { (name, prompt) ->
                                 Surface(
                                     color = palette.surface,
-                                    shape = RoundedCornerShape(3.dp),
+                                    shape = RoundedCornerShape(16.dp),
                                     border = androidx.compose.foundation.BorderStroke(1.dp, palette.border),
                                     modifier = Modifier.weight(1f).clickable { text = prompt }
                                 ) {
@@ -1699,7 +1723,7 @@ private fun PromptEditorScreen(vm: ChatViewModel, onBack: () -> Unit) {
                 }
                 if (audit.hasIssue) {
                     Spacer(Modifier.height(14.dp))
-                    Surface(color = palette.warn.copy(alpha = 0.09f), shape = RoundedCornerShape(3.dp)) {
+                    Surface(color = palette.warn.copy(alpha = 0.09f), shape = RoundedCornerShape(16.dp)) {
                         Column(Modifier.padding(14.dp)) {
                             Text("缓存体检", style = MaterialTheme.typography.labelLarge, color = palette.warn)
                             Spacer(Modifier.height(5.dp))
@@ -1723,7 +1747,7 @@ private fun PromptEditorScreen(vm: ChatViewModel, onBack: () -> Unit) {
                 }
             } else if (anchorAudit.dynamicLines.isNotEmpty()) {
                 Spacer(Modifier.height(12.dp))
-                Surface(color = palette.warn.copy(alpha = 0.09f), shape = RoundedCornerShape(3.dp)) {
+                Surface(color = palette.warn.copy(alpha = 0.09f), shape = RoundedCornerShape(16.dp)) {
                     Text(
                         "固定资料里发现了会变的内容，建议删掉，否则后面的缓存每次都会失效。",
                         style = MaterialTheme.typography.bodySmall,
@@ -1734,7 +1758,7 @@ private fun PromptEditorScreen(vm: ChatViewModel, onBack: () -> Unit) {
             }
 
             Spacer(Modifier.height(14.dp))
-            Surface(color = palette.surfaceAlt, shape = RoundedCornerShape(3.dp)) {
+            Surface(color = palette.surfaceAlt, shape = RoundedCornerShape(16.dp)) {
                 Column(Modifier.padding(14.dp)) {
                     Text("为什么会影响省钱？", style = MaterialTheme.typography.labelLarge, color = palette.text)
                     Spacer(Modifier.height(5.dp))

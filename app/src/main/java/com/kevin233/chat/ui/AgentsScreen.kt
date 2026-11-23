@@ -98,121 +98,123 @@ fun AgentsScreen(vm: ChatViewModel) {
     val palette = pal
     Column(Modifier.fillMaxSize().background(palette.bg).statusBarsPadding()) {
         Row(
-            Modifier.fillMaxWidth().height(66.dp).padding(horizontal = 10.dp),
+            Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = { vm.screen = Screen.CHAT }) {
-                Icon(Icons.Rounded.ArrowBack, "返回", tint = palette.text, modifier = Modifier.size(21.dp))
-            }
-            Spacer(Modifier.width(4.dp))
-            Column(Modifier.weight(1f)) {
-                Kicker("CATALOG / 角色目录")
-                Spacer(Modifier.height(2.dp))
-                Text("智能体与技能", style = MaterialTheme.typography.titleLarge, color = palette.text)
-            }
-            if (tab == 0) {
-                TextButton(onClick = { creating = true }) {
-                    Text("创建", color = palette.accent, style = MaterialTheme.typography.labelMedium)
+            AgentCircleButton(Icons.Rounded.ArrowBack, "返回") { vm.screen = Screen.CHAT }
+            Spacer(Modifier.width(10.dp))
+            Text(
+                "智能体与技能",
+                style = MaterialTheme.typography.headlineSmall,
+                color = palette.text,
+                modifier = Modifier.weight(1f)
+            )
+            TextButton(
+                onClick = {
+                    if (tab == 0) creating = true
+                    else skillPicker.launch(arrayOf("text/*", "application/json", "application/octet-stream"))
                 }
-            } else {
-                TextButton(onClick = {
-                    skillPicker.launch(arrayOf("text/*", "application/json", "application/octet-stream"))
-                }) {
-                    Text("导入", color = palette.accent, style = MaterialTheme.typography.labelMedium)
-                }
+            ) {
+                Text(
+                    if (tab == 0) "创建" else "导入",
+                    color = palette.accent,
+                    style = MaterialTheme.typography.labelLarge
+                )
             }
         }
-        Hairline()
-        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
-            CatalogTab("智能体", tab == 0) { tab = 0 }
-            Spacer(Modifier.width(22.dp))
-            CatalogTab("技能", tab == 1) { tab = 1 }
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+                .background(palette.surfaceAlt, RoundedCornerShape(50))
+                .padding(4.dp)
+        ) {
+            SegmentTab("智能体", tab == 0, Modifier.weight(1f)) { tab = 0 }
+            SegmentTab("技能", tab == 1, Modifier.weight(1f)) { tab = 1 }
         }
-        Hairline()
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp).navigationBarsPadding()
+                .padding(horizontal = 16.dp).navigationBarsPadding()
         ) {
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
             if (tab == 0) {
-                Kicker("CUSTOM / 全部由你创建")
-                Spacer(Modifier.height(5.dp))
                 Text(
-                    "没有自带角色。名字、人设、头像和默认开关都由你决定。",
+                    "创建一个属于自己的角色，设置名字、头像和说话方式。",
                     style = MaterialTheme.typography.bodySmall,
-                    color = palette.textSub
+                    color = palette.textSub,
+                    modifier = Modifier.padding(horizontal = 4.dp)
                 )
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(12.dp))
                 if (vm.settings.customAgents.isEmpty()) {
                     Column(
-                        Modifier.fillMaxWidth().background(palette.surface, RoundedCornerShape(3.dp))
-                            .border(1.dp, palette.border, RoundedCornerShape(3.dp))
-                            .padding(22.dp),
+                        Modifier.fillMaxWidth()
+                            .background(palette.surface, RoundedCornerShape(20.dp))
+                            .border(1.dp, palette.border, RoundedCornerShape(20.dp))
+                            .padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Kicker("EMPTY / 空", palette.accent)
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            "还没有智能体",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = palette.text
-                        )
+                        Box(
+                            Modifier.size(58.dp).background(palette.accentSoft, RoundedCornerShape(18.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Rounded.Groups, null, tint = palette.accent, modifier = Modifier.size(28.dp))
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        Text("还没有智能体", style = MaterialTheme.typography.titleLarge, color = palette.text)
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            "创建一个属于你的角色，之后点一下就能开始聊。",
+                            "创建第一个角色，之后点一下就能开始聊天。",
                             style = MaterialTheme.typography.bodySmall,
                             color = palette.textSub,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
-                        Spacer(Modifier.height(14.dp))
-                        Text(
-                            "创建第一个 →",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = palette.accent,
-                            modifier = Modifier.clickable { creating = true }.padding(6.dp)
-                        )
+                        Spacer(Modifier.height(16.dp))
+                        Box(
+                            Modifier.fillMaxWidth().background(palette.accent, RoundedCornerShape(14.dp))
+                                .clickable { creating = true }.padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("创建智能体", color = palette.onAccent, style = MaterialTheme.typography.labelLarge)
+                        }
                     }
                 } else {
-                    Kicker("MY AGENTS / 我的智能体")
-                    Spacer(Modifier.height(4.dp))
                     AgentCatalog(vm.settings.customAgents, onStart = vm::startAgent, onEdit = { editing = it })
-                    AddCatalogRow("创建智能体") { creating = true }
+                    Spacer(Modifier.height(10.dp))
+                    AddCatalogRow("再创建一个智能体") { creating = true }
                 }
             } else {
-                Kicker("SKILLS / 固定工作说明")
-                Spacer(Modifier.height(5.dp))
                 Text(
-                    "技能会固定成新对话的系统提示词。提示词稳定，缓存也稳。",
+                    "技能是一段固定的工作说明，会成为新对话的系统提示词。",
                     style = MaterialTheme.typography.bodySmall,
-                    color = palette.textSub
+                    color = palette.textSub,
+                    modifier = Modifier.padding(horizontal = 4.dp)
                 )
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(14.dp))
                 if (vm.settings.customSkills.isNotEmpty()) {
-                    Kicker("MY SKILLS / 我的技能")
-                    Spacer(Modifier.height(4.dp))
+                    SectionLabel("我的技能")
+                    Spacer(Modifier.height(6.dp))
                     SkillCatalog(vm.settings.customSkills, vm::startSkill) { deleteSkill = it }
                     Spacer(Modifier.height(10.dp))
                 }
                 AddCatalogRow("导入技能文件") {
                     skillPicker.launch(arrayOf("text/*", "application/json", "application/octet-stream"))
                 }
-                Spacer(Modifier.height(22.dp))
-                Kicker("BUILT IN / 内置技能")
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(20.dp))
+                SectionLabel("内置技能")
+                Spacer(Modifier.height(6.dp))
                 SkillCatalog(Skills.builtin, vm::startSkill, null)
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(12.dp))
                 Text(
                     "支持 SKILL.md、Markdown 和纯文本。带 YAML 头的文件会自动读取名字和说明。",
                     style = MaterialTheme.typography.labelSmall,
-                    color = palette.textSub
+                    color = palette.textSub,
+                    modifier = Modifier.padding(horizontal = 4.dp)
                 )
             }
-            Spacer(Modifier.height(30.dp))
+            Spacer(Modifier.height(24.dp))
             Text(
-                "LOCAL ONLY / 不额外收费，不离开这台手机",
+                "所有角色和技能都只保存在这台手机上",
                 style = MaterialTheme.typography.labelSmall,
-                color = palette.textSub.copy(alpha = 0.75f),
-                modifier = Modifier.fillMaxWidth().padding(bottom = 26.dp),
+                color = palette.textSub.copy(alpha = 0.8f),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
         }
@@ -236,21 +238,31 @@ fun AgentsScreen(vm: ChatViewModel) {
 }
 
 @Composable
-private fun CatalogTab(text: String, selected: Boolean, onClick: () -> Unit) {
+private fun AgentCircleButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
     val palette = pal
-    Column(
-        Modifier.clickable(onClick = onClick).padding(vertical = 12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier.size(38.dp).clip(CircleShape).background(palette.surfaceAlt)
+    ) {
+        Icon(icon, label, tint = palette.text, modifier = Modifier.size(19.dp))
+    }
+}
+
+@Composable
+private fun SegmentTab(text: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val palette = pal
+    Box(
+        modifier
+            .clip(RoundedCornerShape(50))
+            .background(if (selected) palette.surface else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(vertical = 9.dp),
+        contentAlignment = Alignment.Center
     ) {
         Text(
             text,
             style = MaterialTheme.typography.labelLarge,
-            color = if (selected) palette.accent else palette.textSub
-        )
-        Spacer(Modifier.height(7.dp))
-        Box(
-            Modifier.width(22.dp).height(2.dp)
-                .background(if (selected) palette.accent else Color.Transparent)
+            color = if (selected) palette.accentText else palette.textSub
         )
     }
 }
@@ -258,17 +270,20 @@ private fun CatalogTab(text: String, selected: Boolean, onClick: () -> Unit) {
 @Composable
 private fun AgentCatalog(agents: List<Agent>, onStart: (Agent) -> Unit, onEdit: (Agent) -> Unit) {
     val palette = pal
-    Column(Modifier.fillMaxWidth()) {
-        agents.forEachIndexed { index, agent ->
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        agents.forEach { agent ->
             Row(
-                Modifier.fillMaxWidth().clickable { onStart(agent) }.padding(vertical = 13.dp),
+                Modifier.fillMaxWidth()
+                    .background(palette.surface, RoundedCornerShape(18.dp))
+                    .border(1.dp, palette.border, RoundedCornerShape(18.dp))
+                    .clickable { onStart(agent) }
+                    .padding(start = 14.dp, end = 4.dp, top = 13.dp, bottom = 13.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                NumberLabel(index + 1)
-                AgentAvatar(agent.avatarPath, agent.name, 40.dp)
+                AgentAvatar(agent.avatarPath, agent.name, 44.dp)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(agent.name, style = MaterialTheme.typography.titleSmall, color = palette.text, maxLines = 1)
+                    Text(agent.name, style = MaterialTheme.typography.titleMedium, color = palette.text, maxLines = 1)
                     Spacer(Modifier.height(2.dp))
                     Text(
                         agent.tagline.ifBlank { "自定义角色" },
@@ -277,33 +292,50 @@ private fun AgentCatalog(agents: List<Agent>, onStart: (Agent) -> Unit, onEdit: 
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(Modifier.height(4.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        if (agent.webSearch) Kicker("WEB", palette.accent)
-                        if (agent.reasoning > 0) Kicker("THINK ${reasoningShort(agent.reasoning)}", palette.textSub)
+                    if (agent.webSearch || agent.reasoning > 0) {
+                        Spacer(Modifier.height(6.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            if (agent.webSearch) AgentTag("联网")
+                            if (agent.reasoning > 0) AgentTag("思考 ${reasoningShort(agent.reasoning)}")
+                        }
                     }
                 }
-                IconButton(onClick = { onEdit(agent) }, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Rounded.Edit, "编辑", tint = palette.textSub, modifier = Modifier.size(16.dp))
+                IconButton(onClick = { onEdit(agent) }, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Rounded.Edit, "编辑", tint = palette.textSub, modifier = Modifier.size(17.dp))
                 }
             }
-            Hairline()
         }
     }
 }
 
 @Composable
+private fun AgentTag(text: String) {
+    val palette = pal
+    Text(
+        text,
+        style = MaterialTheme.typography.labelSmall,
+        color = palette.accentText,
+        modifier = Modifier
+            .background(palette.accentSoft, RoundedCornerShape(50))
+            .padding(horizontal = 7.dp, vertical = 2.dp)
+    )
+}
+
+@Composable
 private fun SkillCatalog(skills: List<Skill>, onUse: (Skill) -> Unit, onDelete: ((Skill) -> Unit)?) {
     val palette = pal
-    Column(Modifier.fillMaxWidth()) {
-        skills.forEachIndexed { index, skill ->
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        skills.forEach { skill ->
             Row(
-                Modifier.fillMaxWidth().clickable { onUse(skill) }.padding(vertical = 13.dp),
+                Modifier.fillMaxWidth()
+                    .background(palette.surface, RoundedCornerShape(16.dp))
+                    .border(1.dp, palette.border, RoundedCornerShape(16.dp))
+                    .clickable { onUse(skill) }
+                    .padding(start = 12.dp, end = 4.dp, top = 11.dp, bottom = 11.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                NumberLabel(index + 1)
-                AgentAvatar("", skill.name, 36.dp)
-                Spacer(Modifier.width(12.dp))
+                AgentAvatar("", skill.name, 38.dp)
+                Spacer(Modifier.width(11.dp))
                 Column(Modifier.weight(1f)) {
                     Text(skill.name, style = MaterialTheme.typography.titleSmall, color = palette.text, maxLines = 1)
                     if (skill.description.isNotBlank()) {
@@ -319,14 +351,13 @@ private fun SkillCatalog(skills: List<Skill>, onUse: (Skill) -> Unit, onDelete: 
                 }
                 val remove = onDelete
                 if (remove != null) {
-                    IconButton(onClick = { remove(skill) }, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Rounded.Delete, "删除", tint = palette.textSub, modifier = Modifier.size(16.dp))
+                    IconButton(onClick = { remove(skill) }, modifier = Modifier.size(34.dp)) {
+                        Icon(Icons.Rounded.Delete, "删除", tint = palette.textSub, modifier = Modifier.size(17.dp))
                     }
                 } else {
-                    Text("↗", style = MaterialTheme.typography.labelMedium, color = palette.textSub)
+                    Text("→", style = MaterialTheme.typography.labelMedium, color = palette.textSub, modifier = Modifier.padding(end = 10.dp))
                 }
             }
-            Hairline()
         }
     }
 }
@@ -335,21 +366,17 @@ private fun SkillCatalog(skills: List<Skill>, onUse: (Skill) -> Unit, onDelete: 
 private fun AddCatalogRow(text: String, onClick: () -> Unit) {
     val palette = pal
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 14.dp),
+        Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(palette.accentSoft)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            Modifier.size(26.dp).border(1.dp, palette.border, RoundedCornerShape(2.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Rounded.Add, null, tint = palette.accent, modifier = Modifier.size(15.dp))
-        }
-        Spacer(Modifier.width(12.dp))
-        Text(text, style = MaterialTheme.typography.labelMedium, color = palette.accent)
-        Spacer(Modifier.weight(1f))
-        Text("＋", style = MaterialTheme.typography.labelMedium, color = palette.textSub)
+        Icon(Icons.Rounded.Add, null, tint = palette.accent, modifier = Modifier.size(19.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(text, style = MaterialTheme.typography.labelLarge, color = palette.accentText)
     }
-    Hairline()
 }
 
 @Composable
@@ -378,31 +405,30 @@ private fun AgentEditorScreen(vm: ChatViewModel, existing: Agent?, onBack: () ->
             Modifier.fillMaxWidth().height(66.dp).padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.Rounded.ArrowBack, "返回", tint = palette.text, modifier = Modifier.size(21.dp))
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier.size(38.dp).clip(CircleShape).background(palette.surfaceAlt)
+            ) {
+                Icon(Icons.Rounded.ArrowBack, "返回", tint = palette.text, modifier = Modifier.size(20.dp))
             }
-            Spacer(Modifier.width(4.dp))
-            Column(Modifier.weight(1f)) {
-                Kicker("AGENT / 角色设定")
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    if (existing == null) "创建智能体" else "编辑智能体",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = palette.text
-                )
-            }
+            Spacer(Modifier.width(10.dp))
+            Text(
+                if (existing == null) "创建智能体" else "编辑智能体",
+                style = MaterialTheme.typography.headlineSmall,
+                color = palette.text,
+                modifier = Modifier.weight(1f)
+            )
             TextButton(onClick = {
                 vm.saveAgent(draft)
                 vm.showToast("已保存")
                 onBack()
             }) { Text("保存", color = palette.accent, style = MaterialTheme.typography.labelMedium) }
         }
-        Hairline()
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp).navigationBarsPadding()
+                .padding(horizontal = 16.dp).navigationBarsPadding()
         ) {
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(14.dp))
             Row(
                 Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -439,7 +465,7 @@ private fun AgentEditorScreen(vm: ChatViewModel, existing: Agent?, onBack: () ->
                 label = { Text("名字") },
                 placeholder = { Text("比如：小红书文案助手") },
                 singleLine = true,
-                shape = RoundedCornerShape(3.dp),
+                shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(10.dp))
@@ -449,7 +475,7 @@ private fun AgentEditorScreen(vm: ChatViewModel, existing: Agent?, onBack: () ->
                 label = { Text("一句话介绍") },
                 placeholder = { Text("它擅长什么，适合什么时候找它") },
                 singleLine = true,
-                shape = RoundedCornerShape(3.dp),
+                shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(14.dp))
@@ -471,7 +497,7 @@ private fun AgentEditorScreen(vm: ChatViewModel, existing: Agent?, onBack: () ->
             Spacer(Modifier.height(8.dp))
             Surface(
                 color = palette.surface,
-                shape = RoundedCornerShape(3.dp),
+                shape = RoundedCornerShape(16.dp),
                 border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)
             ) {
                 Box(Modifier.fillMaxWidth().height(230.dp).padding(14.dp)) {
@@ -494,7 +520,7 @@ private fun AgentEditorScreen(vm: ChatViewModel, existing: Agent?, onBack: () ->
             Spacer(Modifier.height(14.dp))
             Surface(
                 color = palette.surface,
-                shape = RoundedCornerShape(3.dp),
+                shape = RoundedCornerShape(16.dp),
                 border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)
             ) {
                 Column {
@@ -540,7 +566,7 @@ private fun AgentEditorScreen(vm: ChatViewModel, existing: Agent?, onBack: () ->
                     "删除这个智能体",
                     style = MaterialTheme.typography.labelLarge,
                     color = palette.danger,
-                    modifier = Modifier.clip(RoundedCornerShape(3.dp))
+                    modifier = Modifier.clip(RoundedCornerShape(16.dp))
                         .clickable { confirmDelete = true }.padding(8.dp)
                 )
             }

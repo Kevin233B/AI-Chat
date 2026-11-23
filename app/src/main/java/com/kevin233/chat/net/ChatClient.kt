@@ -82,6 +82,7 @@ class ChatClient {
         var usage = includeUsage
         var features = reasoning > 0 || webSearch
         var long = longCache
+        var anthropicCache = true
         var attempts = 0
         while (true) {
             attempts++
@@ -89,7 +90,8 @@ class ChatClient {
             val search = features && webSearch
             val attempt = when (config.type) {
                 ApiTypes.ANTHROPIC -> streamAnthropic(
-                    config, messages, system, temperature, maxTokens, long, useStream, profile.minPrefix, level, search
+                    config, messages, system, temperature, maxTokens, long, useStream, profile.minPrefix, level, search,
+                    anthropicCache
                 )
                 ApiTypes.GEMINI -> streamGemini(
                     config, messages, system, temperature, maxTokens, geminiExplicit, useStream, level, search
@@ -119,6 +121,13 @@ class ChatClient {
                     (detail.contains("ttl", true) || detail.contains("beta", true))
                 ) {
                     long = false
+                    continue
+                }
+                if (config.type == ApiTypes.ANTHROPIC && anthropicCache &&
+                    (detail.contains("cache_control", true) || detail.contains("prompt caching", true) ||
+                        detail.contains("cache creation", true))
+                ) {
+                    anthropicCache = false
                     continue
                 }
                 throw e
@@ -152,7 +161,7 @@ class ChatClient {
         val body = JSONObject()
         body.put("model", modelName)
         if (isOpenAi || isOpenRouter) {
-            body.put("prompt_cache_key", stableCacheKey(config.model, system))
+            body.put("prompt_cache_key", stableCacheKey(config.model, system, sessionKey))
         }
         if (isOpenRouter && sessionKey.isNotBlank()) {
             body.put("session_id", sessionKey.take(256))
@@ -276,7 +285,8 @@ class ChatClient {
         useStream: Boolean,
         minPrefix: Int,
         reasoning: Int,
-        webSearch: Boolean
+        webSearch: Boolean,
+        cacheEnabled: Boolean
     ): Flow<Delta> = flow {
         val base = normalizeBase(config.baseUrl)
         val url = if (base.endsWith("/v1")) "$base/messages" else "$base/v1/messages"
@@ -319,7 +329,7 @@ class ChatClient {
         val history = mergeRoles(messages)
         var running = Tokens.estimate(system) + 8
         history.forEach { running += Tokens.estimate(it.content) + 4 }
-        val canCache = running >= minPrefix
+        val canCache = running >= minPrefix && cacheEnabled
         if (canCache) body.put("cache_control", cache)
         if (system.isNotBlank()) {
             val sysBlock = JSONObject().put("type", "text").put("text", system)
@@ -666,8 +676,8 @@ class ChatClient {
         }
     }
 
-    private fun stableCacheKey(model: String, system: String): String =
-        "aichat-" + sha256(model + "|" + system).take(24)
+    private fun stableCacheKey(model: String, system: String, sessionKey: String): String =
+        "aichat-" + sha256(model + "|" + system + "|" + sessionKey).take(24)
 
     private fun sha256(text: String): String {
         val bytes = java.security.MessageDigest.getInstance("SHA-256").digest(text.toByteArray(Charsets.UTF_8))
@@ -1012,16 +1022,28 @@ class ChatClient {
 
     private fun parseOpenAiUsage(usage: JSONObject?): Usage? {
         if (usage == null) return null
-        val prompt = usage.optInt("prompt_tokens")
         var cached = 0
         jo(usage, "prompt_tokens_details")?.let {
             if (it.has("cached_tokens")) cached = it.optInt("cached_tokens")
+            if (it.has("cache_read_input_tokens")) cached = it.optInt("cache_read_input_tokens")
         }
         if (usage.has("prompt_cache_hit_tokens")) cached = usage.optInt("prompt_cache_hit_tokens")
         else if (usage.has("cached_tokens")) cached = usage.optInt("cached_tokens")
-        val miss = if (usage.has("prompt_cache_miss_tokens")) usage.optInt("prompt_cache_miss_tokens")
-        else (prompt - cached).coerceAtLeast(0)
-        val out = if (usage.has("completion_tokens")) usage.optInt("completion_tokens") else 0
+        if (usage.has("cache_read_input_tokens")) cached = usage.optInt("cache_read_input_tokens")
+        val creation = if (usage.has("cache_creation_input_tokens")) usage.optInt("cache_creation_input_tokens") else 0
+        val prompt = if (usage.has("prompt_tokens")) {
+            usage.optInt("prompt_tokens")
+        } else {
+            usage.optInt("input_tokens") + cached + creation
+        }
+        val miss = when {
+            usage.has("prompt_cache_miss_tokens") -> usage.optInt("prompt_cache_miss_tokens")
+            else -> (prompt - cached).coerceAtLeast(0)
+        }
+        val out = when {
+            usage.has("completion_tokens") -> usage.optInt("completion_tokens")
+            else -> usage.optInt("output_tokens")
+        }
         if (prompt == 0 && out == 0 && cached == 0 && miss == 0) return null
         return Usage(cached, miss, out)
     }

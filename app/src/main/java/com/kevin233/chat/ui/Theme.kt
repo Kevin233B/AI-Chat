@@ -30,6 +30,7 @@ data class AppColors(
     val accent: Color,
     val accentSoft: Color,
     val accentText: Color,
+    val onAccent: Color,
     val userBubble: Color,
     val userBubbleText: Color,
     val codeBg: Color,
@@ -39,88 +40,151 @@ data class AppColors(
     val danger: Color
 )
 
+data class AccentPreset(
+    val name: String,
+    val light: Color,
+    val lightSoft: Color,
+    val lightText: Color,
+    val dark: Color,
+    val darkSoft: Color,
+    val darkText: Color
+)
+
+val AccentPresets = listOf(
+    AccentPreset(
+        "海蓝",
+        Color(0xFF2563EB),
+        Color(0xFFEAF0FF),
+        Color(0xFF1D46B8),
+        Color(0xFF7EA0FF),
+        Color(0xFF172033),
+        Color(0xFFB7C8FF)
+    ),
+    AccentPreset(
+        "松绿",
+        Color(0xFF0F766E),
+        Color(0xFFE2F5F1),
+        Color(0xFF0B5B55),
+        Color(0xFF5BD6C4),
+        Color(0xFF102925),
+        Color(0xFFA0EDE2)
+    ),
+    AccentPreset(
+        "珊瑚",
+        Color(0xFFC94732),
+        Color(0xFFFDECE8),
+        Color(0xFFA53623),
+        Color(0xFFFF8C7A),
+        Color(0xFF301A15),
+        Color(0xFFFFB4A8)
+    ),
+    AccentPreset(
+        "葡萄",
+        Color(0xFF7C3AED),
+        Color(0xFFF1EAFF),
+        Color(0xFF6127C7),
+        Color(0xFFB896FF),
+        Color(0xFF231A33),
+        Color(0xFFD8C6FF)
+    ),
+    AccentPreset(
+        "琥珀",
+        Color(0xFF9A4A05),
+        Color(0xFFFBF0DF),
+        Color(0xFF7A3A04),
+        Color(0xFFF0B35A),
+        Color(0xFF2A2114),
+        Color(0xFFF6D49B)
+    )
+)
+
+val AccentLabels: List<String> = AccentPresets.map { it.name }
+
+val AccentSwatches: List<Color> = AccentPresets.map { it.light }
+
 private val Paper = AppColors(
-    bg = Color(0xFFFAF9F6),
+    bg = Color(0xFFF6F3ED),
     surface = Color(0xFFFFFFFF),
-    surfaceAlt = Color(0xFFF2F0EA),
-    border = Color(0xFFE3DFD6),
-    text = Color(0xFF16161A),
-    textSub = Color(0xFF6C6862),
-    accent = Color(0xFFE4502A),
-    accentSoft = Color(0xFFFDECE5),
-    accentText = Color(0xFFAF3717),
-    userBubble = Color(0xFFF3F0E9),
-    userBubbleText = Color(0xFF201E1A),
-    codeBg = Color(0xFF15171B),
-    codeText = Color(0xFFE7E4DE),
-    ok = Color(0xFF16795D),
-    warn = Color(0xFFA66F19),
-    danger = Color(0xFFBE3A2B)
+    surfaceAlt = Color(0xFFEFEAE1),
+    border = Color(0xFFE5DED2),
+    text = Color(0xFF1F1F1D),
+    textSub = Color(0xFF6F6A61),
+    accent = AccentPresets[0].light,
+    accentSoft = AccentPresets[0].lightSoft,
+    accentText = AccentPresets[0].lightText,
+    onAccent = Color.White,
+    userBubble = AccentPresets[0].light,
+    userBubbleText = Color.White,
+    codeBg = Color(0xFF16171B),
+    codeText = Color(0xFFE9E6E0),
+    ok = Color(0xFF16805F),
+    warn = Color(0xFFB7791F),
+    danger = Color(0xFFC2413A)
 )
 
 private val Ink = AppColors(
-    bg = Color(0xFF0B0B0D),
-    surface = Color(0xFF141418),
-    surfaceAlt = Color(0xFF1B1B20),
-    border = Color(0xFF27272E),
-    text = Color(0xFFEFEDE8),
-    textSub = Color(0xFF9A968E),
-    accent = Color(0xFFFF7048),
-    accentSoft = Color(0xFF2B1A14),
-    accentText = Color(0xFFFFA184),
-    userBubble = Color(0xFF1F1C19),
-    userBubbleText = Color(0xFFF0EAE2),
+    bg = Color(0xFF121315),
+    surface = Color(0xFF1B1C1F),
+    surfaceAlt = Color(0xFF24252A),
+    border = Color(0xFF313238),
+    text = Color(0xFFF2F0EB),
+    textSub = Color(0xFFA6A199),
+    accent = AccentPresets[0].dark,
+    accentSoft = AccentPresets[0].darkSoft,
+    accentText = AccentPresets[0].darkText,
+    onAccent = Color(0xFF121315),
+    userBubble = AccentPresets[0].dark,
+    userBubbleText = Color(0xFF121315),
     codeBg = Color(0xFF0E0F12),
-    codeText = Color(0xFFE4E1DB),
-    ok = Color(0xFF3FBF95),
-    warn = Color(0xFFD9A24A),
-    danger = Color(0xFFE8705F)
+    codeText = Color(0xFFE7E4DE),
+    ok = Color(0xFF46C89E),
+    warn = Color(0xFFE4AB58),
+    danger = Color(0xFFF07A6B)
 )
 
 val LocalPalette = staticCompositionLocalOf { Paper }
 
 val LocalDark = staticCompositionLocalOf { false }
 
-val AppGradient = Brush.linearGradient(listOf(Color(0xFFFF7A4D), Color(0xFFD8411D)))
+val AppGradient = Brush.linearGradient(listOf(Color(0xFF4F7CFF), Color(0xFF2348C9)))
 
-val AppGradientWarm = Brush.linearGradient(listOf(Color(0xFFE4502A), Color(0xFF9E2F14)))
+val AppGradientWarm = Brush.linearGradient(listOf(Color(0xFFF07A5D), Color(0xFFC9432D)))
 
-val Serif = FontFamily.Serif
+val Serif = FontFamily.SansSerif
 val Mono = FontFamily.Monospace
-val Sans = FontFamily.Default
+val Sans = FontFamily.SansSerif
 
 private val AppTypography = Typography(
     displaySmall = TextStyle(
-        fontFamily = Serif,
-        fontSize = 32.sp,
-        lineHeight = 40.sp,
-        fontWeight = FontWeight.SemiBold,
-        letterSpacing = (-0.6).sp
-    ),
-    headlineMedium = TextStyle(
-        fontFamily = Serif,
-        fontSize = 25.sp,
-        lineHeight = 33.sp,
-        fontWeight = FontWeight.SemiBold,
+        fontFamily = Sans,
+        fontSize = 30.sp,
+        lineHeight = 38.sp,
+        fontWeight = FontWeight.Bold,
         letterSpacing = (-0.4).sp
     ),
-    headlineSmall = TextStyle(
-        fontFamily = Serif,
-        fontSize = 21.sp,
-        lineHeight = 30.sp,
-        fontWeight = FontWeight.SemiBold,
+    headlineMedium = TextStyle(
+        fontFamily = Sans,
+        fontSize = 24.sp,
+        lineHeight = 32.sp,
+        fontWeight = FontWeight.Bold,
         letterSpacing = (-0.2).sp
     ),
+    headlineSmall = TextStyle(
+        fontFamily = Sans,
+        fontSize = 20.sp,
+        lineHeight = 28.sp,
+        fontWeight = FontWeight.SemiBold
+    ),
     titleLarge = TextStyle(
-        fontFamily = Serif,
-        fontSize = 19.sp,
-        lineHeight = 26.sp,
+        fontFamily = Sans,
+        fontSize = 18.sp,
+        lineHeight = 25.sp,
         fontWeight = FontWeight.SemiBold
     ),
     titleMedium = TextStyle(
         fontFamily = Sans,
-        fontSize = 15.5.sp,
-        lineHeight = 22.sp,
+        fontSize = 16.sp,
+        lineHeight = 23.sp,
         fontWeight = FontWeight.Medium
     ),
     titleSmall = TextStyle(
@@ -131,8 +195,8 @@ private val AppTypography = Typography(
     ),
     bodyLarge = TextStyle(
         fontFamily = Sans,
-        fontSize = 15.5.sp,
-        lineHeight = 25.sp,
+        fontSize = 15.sp,
+        lineHeight = 24.sp,
         fontWeight = FontWeight.Normal
     ),
     bodyMedium = TextStyle(
@@ -144,7 +208,7 @@ private val AppTypography = Typography(
     bodySmall = TextStyle(
         fontFamily = Sans,
         fontSize = 13.sp,
-        lineHeight = 19.5.sp,
+        lineHeight = 20.sp,
         fontWeight = FontWeight.Normal
     ),
     labelLarge = TextStyle(
@@ -154,59 +218,53 @@ private val AppTypography = Typography(
         fontWeight = FontWeight.Medium
     ),
     labelMedium = TextStyle(
-        fontFamily = Mono,
-        fontSize = 11.5.sp,
+        fontFamily = Sans,
+        fontSize = 12.sp,
         lineHeight = 16.sp,
-        fontWeight = FontWeight.Medium,
-        letterSpacing = 0.5.sp
+        fontWeight = FontWeight.Medium
     ),
     labelSmall = TextStyle(
-        fontFamily = Mono,
-        fontSize = 10.5.sp,
+        fontFamily = Sans,
+        fontSize = 11.sp,
         lineHeight = 15.sp,
-        fontWeight = FontWeight.Normal,
-        letterSpacing = 0.7.sp
+        fontWeight = FontWeight.Normal
     )
 )
 
 private val AppShapes = Shapes(
-    extraSmall = RoundedCornerShape(4.dp),
-    small = RoundedCornerShape(8.dp),
-    medium = RoundedCornerShape(12.dp),
-    large = RoundedCornerShape(16.dp),
-    extraLarge = RoundedCornerShape(22.dp)
-)
-
-private data class Accent(val light: Color, val lightSoft: Color, val lightText: Color, val dark: Color, val darkSoft: Color, val darkText: Color)
-
-private val Accents = listOf(
-    Accent(Color(0xFFE4502A), Color(0xFFFDECE5), Color(0xFFAF3717), Color(0xFFFF7048), Color(0xFF2B1A14), Color(0xFFFFA184)),
-    Accent(Color(0xFF2F5BEA), Color(0xFFE9EEFF), Color(0xFF1E3FB0), Color(0xFF7D9BFF), Color(0xFF141C33), Color(0xFFA9BEFF)),
-    Accent(Color(0xFF0E7A5F), Color(0xFFE4F5EF), Color(0xFF0A5A46), Color(0xFF4FD1AC), Color(0xFF0F2A24), Color(0xFF8FE8D0)),
-    Accent(Color(0xFF8A3FFC), Color(0xFFF1E9FF), Color(0xFF6527C4), Color(0xFFB78BFF), Color(0xFF241733), Color(0xFFD3B8FF)),
-    Accent(Color(0xFFB07A12), Color(0xFFFBF1D9), Color(0xFF7C560C), Color(0xFFE0B154), Color(0xFF2B2313), Color(0xFFF0CC86))
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(22.dp),
+    extraLarge = RoundedCornerShape(28.dp)
 )
 
 private fun AppColors.withAccent(index: Int, dark: Boolean): AppColors {
-    val a = Accents.getOrElse(index) { Accents.first() }
+    val a = AccentPresets.getOrElse(index) { AccentPresets.first() }
     return if (dark) copy(
         accent = a.dark,
         accentSoft = a.darkSoft,
-        accentText = a.darkText
+        accentText = a.darkText,
+        onAccent = Color(0xFF121315),
+        userBubble = a.dark,
+        userBubbleText = Color(0xFF121315)
     ) else copy(
         accent = a.light,
         accentSoft = a.lightSoft,
-        accentText = a.lightText
+        accentText = a.lightText,
+        onAccent = Color.White,
+        userBubble = a.light,
+        userBubbleText = Color.White
     )
 }
 
 private fun AppColors.glassy(alpha: Float): AppColors = copy(
     bg = Color.Transparent,
-    surface = surface.copy(alpha = alpha.coerceIn(0.42f, 0.96f)),
-    surfaceAlt = surfaceAlt.copy(alpha = (alpha - 0.08f).coerceIn(0.34f, 0.94f)),
-    border = border.copy(alpha = 0.5f),
-    userBubble = userBubble.copy(alpha = (alpha + 0.02f).coerceAtMost(0.96f)),
-    accentSoft = accentSoft.copy(alpha = 0.86f),
+    surface = surface.copy(alpha = alpha.coerceIn(0.62f, 0.97f)),
+    surfaceAlt = surfaceAlt.copy(alpha = alpha.coerceIn(0.52f, 0.96f)),
+    border = border.copy(alpha = 0.62f),
+    userBubble = userBubble.copy(alpha = 0.92f),
+    accentSoft = accentSoft.copy(alpha = 0.9f),
     codeBg = codeBg.copy(alpha = 0.97f)
 )
 
@@ -229,7 +287,7 @@ fun AIChatTheme(
     val scheme = if (dark) {
         darkColorScheme(
             primary = palette.accent,
-            onPrimary = Color.White,
+            onPrimary = palette.onAccent,
             primaryContainer = palette.accentSoft,
             onPrimaryContainer = palette.accentText,
             background = palette.bg,
@@ -246,7 +304,7 @@ fun AIChatTheme(
     } else {
         lightColorScheme(
             primary = palette.accent,
-            onPrimary = Color.White,
+            onPrimary = palette.onAccent,
             primaryContainer = palette.accentSoft,
             onPrimaryContainer = palette.accentText,
             background = palette.bg,
@@ -261,8 +319,16 @@ fun AIChatTheme(
             onError = Color.White
         )
     }
-    CompositionLocalProvider(LocalPalette provides palette, LocalDark provides dark) {
-        MaterialTheme(colorScheme = scheme, typography = AppTypography, shapes = AppShapes, content = content)
+    CompositionLocalProvider(
+        LocalPalette provides palette,
+        LocalDark provides dark
+    ) {
+        MaterialTheme(
+            colorScheme = scheme,
+            typography = AppTypography,
+            shapes = AppShapes,
+            content = content
+        )
     }
 }
 

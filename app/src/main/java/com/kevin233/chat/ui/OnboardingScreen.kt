@@ -94,28 +94,36 @@ fun OnboardingScreen(vm: ChatViewModel) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (step > 0) {
-                IconButton(onClick = { step-- }) {
-                    Icon(Icons.Rounded.ArrowBack, "返回", tint = palette.text, modifier = Modifier.size(21.dp))
+                IconButton(
+                    onClick = { step-- },
+                    modifier = Modifier.size(38.dp).clip(CircleShape).background(palette.surfaceAlt)
+                ) {
+                    Icon(Icons.Rounded.ArrowBack, "返回", tint = palette.text, modifier = Modifier.size(20.dp))
                 }
             } else {
-                AppLogo(26.dp, 8.dp)
+                AppLogo(28.dp, 9.dp)
             }
             Spacer(Modifier.width(12.dp))
-            Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                 repeat(3) { i ->
                     Box(
                         Modifier
-                            .width(if (i == step) 26.dp else 10.dp)
-                            .height(2.dp)
-                            .background(if (i <= step) palette.accent else palette.border)
+                            .width(if (i == step) 28.dp else 10.dp)
+                            .height(5.dp)
+                            .background(if (i <= step) palette.accent else palette.border, RoundedCornerShape(50))
                     )
                 }
             }
-            TextButton(onClick = { vm.skipOnboarding() }) {
-                Text("SKIP", style = MaterialTheme.typography.labelSmall, color = palette.textSub)
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(palette.surfaceAlt)
+                    .clickable { vm.skipOnboarding() }
+                    .padding(horizontal = 12.dp, vertical = 7.dp)
+            ) {
+                Text("跳过", style = MaterialTheme.typography.labelMedium, color = palette.textSub)
             }
         }
-        Hairline()
         AnimatedContent(
             targetState = step,
             transitionSpec = {
@@ -200,32 +208,40 @@ fun OnboardingScreen(vm: ChatViewModel) {
 private fun WelcomeStep(onStart: () -> Unit) {
     val palette = pal
     Column(Modifier.fillMaxWidth().padding(top = 18.dp)) {
-        Kicker("AI CHAT / SETUP")
-        Spacer(Modifier.height(12.dp))
+        Row(
+            Modifier.background(palette.accentSoft, RoundedCornerShape(50))
+                .padding(horizontal = 11.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(Modifier.size(6.dp).background(palette.accent, CircleShape))
+            Spacer(Modifier.width(6.dp))
+            Text("1 分钟完成配置", style = MaterialTheme.typography.labelMedium, color = palette.accentText)
+        }
+        Spacer(Modifier.height(14.dp))
         Text(
-            "把 AI\n装进手机",
+            "把 AI 装进手机",
             style = MaterialTheme.typography.displaySmall,
-            fontSize = 40.sp,
-            lineHeight = 48.sp,
+            fontSize = 38.sp,
+            lineHeight = 46.sp,
             color = palette.text
         )
-        Spacer(Modifier.height(16.dp))
-        Box(Modifier.width(52.dp).height(2.dp).background(palette.accent))
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(14.dp))
         Text(
             "用自己的 API Key，直接连 DeepSeek 等几十家模型。不写代码，不注册账号，全程只要一分钟。",
             style = MaterialTheme.typography.bodyMedium,
             color = palette.textSub
         )
-        Spacer(Modifier.height(28.dp))
+        Spacer(Modifier.height(24.dp))
         FeatureRow(1, "自己的 Key", "直接连模型，没有中间商，也没有订阅费")
+        Spacer(Modifier.height(8.dp))
         FeatureRow(2, "缓存省钱", "按厂商优化前缀缓存，命中后输入价格更低")
-        FeatureRow(3, "只存本机", "聊天和 Key 都不上传，没有账号和广告")
-        Spacer(Modifier.height(26.dp))
-        PrimaryButton("开始配置 →", onStart)
+        Spacer(Modifier.height(8.dp))
+        FeatureRow(3, "只存本机", "聊天和 Key 都不会上传，没有账号和广告")
+        Spacer(Modifier.height(24.dp))
+        PrimaryButton("开始配置", onStart)
         Spacer(Modifier.height(10.dp))
         Text(
-            "已经有 Key？点右上角 SKIP，设置里也能填。",
+            "已经有 Key？点右上角跳过，设置里也能填。",
             style = MaterialTheme.typography.labelSmall,
             color = palette.textSub,
             modifier = Modifier.fillMaxWidth(),
@@ -237,20 +253,29 @@ private fun WelcomeStep(onStart: () -> Unit) {
 @Composable
 private fun FeatureRow(number: Int, title: String, desc: String) {
     val palette = pal
-    Column(Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(vertical = 12.dp), verticalAlignment = Alignment.Top) {
+    Row(
+        Modifier.fillMaxWidth()
+            .background(palette.surface, RoundedCornerShape(16.dp))
+            .border(1.dp, palette.border, RoundedCornerShape(16.dp))
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Box(
+            Modifier.size(34.dp).background(palette.accentSoft, RoundedCornerShape(11.dp)),
+            contentAlignment = Alignment.Center
+        ) {
             Text(
-                number.toString().padStart(2, '0'),
+                number.toString(),
                 style = MaterialTheme.typography.labelMedium,
-                color = palette.accent,
-                modifier = Modifier.width(30.dp)
+                color = palette.accent
             )
-            Column {
-                Text(title, style = MaterialTheme.typography.bodyLarge, color = palette.text, fontWeight = FontWeight.Medium)
-                Text(desc, style = MaterialTheme.typography.bodySmall, color = palette.textSub)
-            }
         }
-        Hairline()
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleSmall, color = palette.text)
+            Spacer(Modifier.height(2.dp))
+            Text(desc, style = MaterialTheme.typography.bodySmall, color = palette.textSub)
+        }
     }
 }
 
@@ -263,8 +288,6 @@ private fun ChooseStep(
 ) {
     val palette = pal
     Column(Modifier.fillMaxWidth().padding(top = 18.dp)) {
-        Kicker("STEP 01 / MODEL")
-        Spacer(Modifier.height(10.dp))
         Text("选择模型入口", style = MaterialTheme.typography.headlineMedium, color = palette.text)
         Spacer(Modifier.height(8.dp))
         Text(
@@ -277,8 +300,8 @@ private fun ChooseStep(
         if (deepSeek != null) {
             Row(
                 Modifier.fillMaxWidth()
-                    .background(palette.accentSoft, RoundedCornerShape(3.dp))
-                    .border(1.dp, palette.accent.copy(alpha = 0.35f), RoundedCornerShape(3.dp))
+                    .background(palette.accentSoft, RoundedCornerShape(16.dp))
+                    .border(1.dp, palette.accent.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
                     .clickable {
                         onSelect(deepSeek.id)
                         onNext()
@@ -290,7 +313,14 @@ private fun ChooseStep(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(deepSeek.name, style = MaterialTheme.typography.titleMedium, color = palette.accentText)
                         Spacer(Modifier.width(8.dp))
-                        Text("推荐", style = MaterialTheme.typography.labelSmall, color = palette.accent)
+                        Text(
+                            "推荐",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = palette.accent,
+                            modifier = Modifier
+                                .background(palette.surface, RoundedCornerShape(50))
+                                .padding(horizontal = 7.dp, vertical = 2.dp)
+                        )
                     }
                     Spacer(Modifier.height(4.dp))
                     Text(deepSeek.desc, style = MaterialTheme.typography.bodySmall, color = palette.textSub)
@@ -298,43 +328,52 @@ private fun ChooseStep(
                 Text("就用它 →", style = MaterialTheme.typography.labelMedium, color = palette.accent)
             }
         }
-        Spacer(Modifier.height(20.dp))
-        Kicker("ALL PLATFORMS / 全部平台")
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(18.dp))
+        SectionLabel("全部平台")
+        Spacer(Modifier.height(6.dp))
         val list = Presets.all.filter { it.id != "custom" && it.id != "deepseek" }
-        list.forEachIndexed { index, p ->
-            Row(
-                Modifier.fillMaxWidth().clickable {
-                    onSelect(p.id)
-                }.padding(vertical = 13.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    (index + 2).toString().padStart(2, '0'),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = palette.textSub,
-                    modifier = Modifier.width(28.dp)
-                )
-                Column(Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(p.name, style = MaterialTheme.typography.titleSmall, color = palette.text)
-                        if (p.id == selected) {
-                            Spacer(Modifier.width(7.dp))
-                            Text("已选", style = MaterialTheme.typography.labelSmall, color = palette.accent)
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            list.forEach { p ->
+                Row(
+                    Modifier.fillMaxWidth()
+                        .background(palette.surface, RoundedCornerShape(16.dp))
+                        .border(
+                            if (p.id == selected) 2.dp else 1.dp,
+                            if (p.id == selected) palette.accent else palette.border,
+                            RoundedCornerShape(16.dp)
+                        )
+                        .clickable { onSelect(p.id) }
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(p.name, style = MaterialTheme.typography.titleSmall, color = palette.text)
+                            if (p.id == selected) {
+                                Spacer(Modifier.width(7.dp))
+                                Text(
+                                    "已选",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = palette.accent,
+                                    modifier = Modifier
+                                        .background(palette.accentSoft, RoundedCornerShape(50))
+                                        .padding(horizontal = 7.dp, vertical = 2.dp)
+                                )
+                            }
                         }
+                        Spacer(Modifier.height(2.dp))
+                        Text(p.desc, style = MaterialTheme.typography.bodySmall, color = palette.textSub, maxLines = 2)
                     }
-                    Text(p.desc, style = MaterialTheme.typography.bodySmall, color = palette.textSub, maxLines = 2)
+                    Text("→", style = MaterialTheme.typography.labelMedium, color = palette.textSub, modifier = Modifier.padding(start = 8.dp))
                 }
-                Text("↗", style = MaterialTheme.typography.labelMedium, color = palette.textSub)
             }
-            Hairline()
         }
         Spacer(Modifier.height(8.dp))
         TextButton(onClick = onCustom) {
             Text("自定义接口 / 中转站 →", style = MaterialTheme.typography.labelMedium, color = palette.accent)
         }
         Spacer(Modifier.height(8.dp))
-        PrimaryButton("下一步 →", onNext)
+        PrimaryButton("下一步", onNext)
     }
 }
 
@@ -355,12 +394,10 @@ private fun KeyStep(
 ) {
     val palette = pal
     Column(Modifier.fillMaxWidth().padding(top = 18.dp)) {
-        Kicker("STEP 03 / API KEY")
-        Spacer(Modifier.height(10.dp))
         Text("拿到 ${preset.name} 的 Key", style = MaterialTheme.typography.headlineMedium, color = palette.text)
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(7.dp))
         Text("跟着下面做，一步都不用想。", style = MaterialTheme.typography.bodyMedium, color = palette.textSub)
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(16.dp))
         val guide = preset.guide.ifEmpty {
             listOf(
                 "打开 ${preset.name} 的官网，注册并登录。",
@@ -369,17 +406,31 @@ private fun KeyStep(
                 "回到这里粘贴，点下面的按钮测试。"
             )
         }
-        guide.forEachIndexed { index, line ->
-            Row(Modifier.padding(vertical = 9.dp), verticalAlignment = Alignment.Top) {
-                Text(
-                    (index + 1).toString().padStart(2, '0'),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = palette.accent,
-                    modifier = Modifier.width(30.dp)
-                )
-                Text(line, style = MaterialTheme.typography.bodyMedium, color = palette.text)
+        Column(
+            Modifier.fillMaxWidth()
+                .background(palette.surface, RoundedCornerShape(18.dp))
+                .border(1.dp, palette.border, RoundedCornerShape(18.dp))
+                .padding(4.dp)
+        ) {
+            guide.forEachIndexed { index, line ->
+                Row(Modifier.padding(horizontal = 10.dp, vertical = 10.dp), verticalAlignment = Alignment.Top) {
+                    Box(
+                        Modifier.size(24.dp).background(palette.accentSoft, RoundedCornerShape(8.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            (index + 1).toString(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = palette.accent
+                        )
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Text(line, style = MaterialTheme.typography.bodySmall, color = palette.text)
+                }
+                if (index < guide.lastIndex) {
+                    Box(Modifier.fillMaxWidth().padding(start = 44.dp).height(1.dp).background(palette.border))
+                }
             }
-            Hairline()
         }
         if (preset.keyUrl.isNotBlank()) {
             Spacer(Modifier.height(14.dp))
@@ -397,16 +448,17 @@ private fun KeyStep(
                 )
                 Text("↗", style = MaterialTheme.typography.labelMedium, color = palette.accent)
             }
-            Hairline()
         }
         Spacer(Modifier.height(20.dp))
-        Kicker("PASTE / 粘贴 Key")
+        SectionLabel("粘贴 Key")
         Spacer(Modifier.height(6.dp))
         Row(
-            Modifier.fillMaxWidth().padding(vertical = 8.dp),
+            Modifier.fillMaxWidth()
+                .background(palette.surfaceAlt, RoundedCornerShape(14.dp))
+                .padding(horizontal = 12.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(Modifier.weight(1f)) {
+            Box(Modifier.weight(1f).padding(vertical = 7.dp)) {
                 if (key.isEmpty()) {
                     Text(
                         "粘贴到这里",
@@ -434,7 +486,7 @@ private fun KeyStep(
                 )
             }
             Row(
-                Modifier.clip(RoundedCornerShape(2.dp)).clickable { onPaste() }.padding(horizontal = 8.dp, vertical = 5.dp),
+                Modifier.clip(RoundedCornerShape(12.dp)).clickable { onPaste() }.padding(horizontal = 8.dp, vertical = 5.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(Icons.Rounded.ContentPaste, null, tint = palette.accent, modifier = Modifier.size(14.dp))
@@ -442,19 +494,18 @@ private fun KeyStep(
                 Text("粘贴", style = MaterialTheme.typography.labelSmall, color = palette.accent)
             }
         }
-        Hairline()
         if (result != null) {
             Spacer(Modifier.height(12.dp))
             Row(
                 Modifier.fillMaxWidth()
                     .background(
                         if (result.first) palette.ok.copy(alpha = 0.07f) else palette.danger.copy(alpha = 0.06f),
-                        RoundedCornerShape(3.dp)
+                        RoundedCornerShape(16.dp)
                     )
                     .border(
                         1.dp,
                         if (result.first) palette.ok.copy(alpha = 0.3f) else palette.danger.copy(alpha = 0.3f),
-                        RoundedCornerShape(3.dp)
+                        RoundedCornerShape(16.dp)
                     )
                     .padding(12.dp),
                 verticalAlignment = Alignment.Top
@@ -474,7 +525,7 @@ private fun KeyStep(
             }
         }
         Spacer(Modifier.height(20.dp))
-        PrimaryButton(if (testing) "正在测试…" else "测试并开始 →", onTest, enabled = !testing, loading = testing)
+        PrimaryButton(if (testing) "正在测试…" else "测试并开始", onTest, enabled = !testing, loading = testing)
         Spacer(Modifier.height(6.dp))
         TextButton(onClick = onSkipSave, enabled = !testing, modifier = Modifier.fillMaxWidth()) {
             Text("先保存，不测试直接开始", style = MaterialTheme.typography.labelSmall, color = palette.textSub)
@@ -505,24 +556,24 @@ private fun PrimaryButton(
     val palette = pal
     Row(
         Modifier.fillMaxWidth().height(52.dp)
-            .background(if (enabled) palette.accent else palette.surfaceAlt, RoundedCornerShape(3.dp))
+            .background(if (enabled) palette.accent else palette.surfaceAlt, RoundedCornerShape(16.dp))
             .clickable(enabled = enabled) { onClick() }
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (loading) {
-            CircularProgressIndicator(Modifier.size(15.dp), strokeWidth = 2.dp, color = Color.White)
+            CircularProgressIndicator(Modifier.size(15.dp), strokeWidth = 2.dp, color = palette.onAccent)
             Spacer(Modifier.width(9.dp))
         }
         Text(
             text,
-            color = if (enabled) Color.White else palette.textSub,
+            color = if (enabled) palette.onAccent else palette.textSub,
             style = MaterialTheme.typography.labelMedium
         )
         Spacer(Modifier.weight(1f))
         Text(
             "→",
-            color = if (enabled) Color.White else palette.textSub,
+            color = if (enabled) palette.onAccent else palette.textSub,
             style = MaterialTheme.typography.labelMedium
         )
     }

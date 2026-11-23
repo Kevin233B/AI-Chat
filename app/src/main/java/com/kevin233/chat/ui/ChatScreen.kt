@@ -1,6 +1,5 @@
 package com.kevin233.chat.ui
 
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -8,13 +7,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -45,7 +44,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
@@ -56,6 +54,7 @@ import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.Psychology
@@ -73,7 +72,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
@@ -89,15 +87,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -108,6 +104,7 @@ import com.kevin233.chat.Screen
 import com.kevin233.chat.data.Conversation
 import com.kevin233.chat.data.Message
 import com.kevin233.chat.data.Presets
+import com.kevin233.chat.data.cacheFingerprint
 import com.kevin233.chat.util.Images
 import com.kevin233.chat.util.Tokens
 import kotlinx.coroutines.Dispatchers
@@ -119,24 +116,24 @@ fun ChatScreen(vm: ChatViewModel) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val wide = maxWidth >= 860.dp
+        val wide = maxWidth >= 880.dp
         if (wide) {
             Row(Modifier.fillMaxSize().background(pal.bg)) {
-                IndexRail(vm, Modifier.width(288.dp).fillMaxHeight(), true, onPicked = {})
+                Sidebar(vm, Modifier.width(304.dp).fillMaxHeight(), true, onPicked = {})
                 Box(Modifier.width(1.dp).fillMaxHeight().background(pal.border))
                 ChatPane(vm, true, {}, Modifier.weight(1f))
             }
         } else {
             ModalNavigationDrawer(
                 drawerState = drawerState,
-                scrimColor = Color.Black.copy(alpha = 0.4f),
+                scrimColor = Color.Black.copy(alpha = 0.38f),
                 drawerContent = {
                     ModalDrawerSheet(
                         drawerContainerColor = pal.bg,
-                        drawerShape = RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp),
-                        modifier = Modifier.width(300.dp)
+                        drawerShape = RoundedCornerShape(topEnd = 22.dp, bottomEnd = 22.dp),
+                        modifier = Modifier.width(312.dp)
                     ) {
-                        IndexRail(vm, Modifier.fillMaxSize(), false) {
+                        Sidebar(vm, Modifier.fillMaxSize(), false) {
                             scope.launch { drawerState.close() }
                         }
                     }
@@ -148,9 +145,9 @@ fun ChatScreen(vm: ChatViewModel) {
     }
 }
 
-@Composable
 @OptIn(ExperimentalFoundationApi::class)
-private fun IndexRail(
+@Composable
+private fun Sidebar(
     vm: ChatViewModel,
     modifier: Modifier,
     wide: Boolean,
@@ -163,52 +160,112 @@ private fun IndexRail(
     val list = vm.sortedConversations
     val conv = vm.currentConversation
 
-    Column(modifier.background(if (wide) palette.surfaceAlt else palette.bg).statusBarsPadding()) {
-        Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 16.dp)) {
-            Text(
-                "AI CHAT",
-                style = MaterialTheme.typography.titleLarge,
-                fontSize = 21.sp,
-                color = palette.text,
-                letterSpacing = 1.5.sp
-            )
-            Spacer(Modifier.height(5.dp))
-            Kicker("NOTEBOOK / 对话索引")
-        }
-        Hairline()
-        RailAction("新建对话", "NEW", Icons.Rounded.Add, accent = true) {
-            vm.newChat()
-            onPicked()
-        }
-        Hairline()
-        RailAction("智能体与技能", "${vm.agents.size + vm.skills.size}", Icons.Rounded.Groups) {
-            vm.screen = Screen.AGENTS
-            onPicked()
-        }
-        RailAction("搜索聊天记录", "FIND", Icons.Rounded.Search) {
-            vm.screen = Screen.HISTORY
-            onPicked()
-        }
-        Hairline()
-        CacheLedger(vm, Modifier.padding(horizontal = 20.dp, vertical = 12.dp))
-        Hairline()
+    Column(
+        modifier
+            .background(if (wide) palette.surface else palette.bg)
+            .statusBarsPadding()
+    ) {
         Row(
-            Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 8.dp),
+            Modifier.fillMaxWidth().padding(start = 18.dp, end = 12.dp, top = 16.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Kicker("RECENT / 最近", palette.textSub, Modifier.weight(1f))
+            Box(Modifier.size(7.dp).background(palette.accent, CircleShape))
+            Spacer(Modifier.width(9.dp))
             Text(
-                list.size.toString().padStart(2, '0'),
+                "AI Chat",
+                style = MaterialTheme.typography.headlineSmall,
+                color = palette.text,
+                letterSpacing = (-0.2).sp,
+                modifier = Modifier.weight(1f)
+            )
+            Box(
+                Modifier
+                    .background(palette.accentSoft, RoundedCornerShape(50))
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Text("本机", style = MaterialTheme.typography.labelSmall, color = palette.accentText)
+            }
+        }
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(palette.accent)
+                .clickable {
+                    vm.newChat()
+                    onPicked()
+                }
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Rounded.Add, null, tint = palette.onAccent, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "新建对话",
+                style = MaterialTheme.typography.titleSmall,
+                color = palette.onAccent,
+                modifier = Modifier.weight(1f)
+            )
+        }
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 8.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(palette.surfaceAlt)
+                .clickable {
+                    vm.screen = Screen.HISTORY
+                    onPicked()
+                }
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Rounded.Search, null, tint = palette.textSub, modifier = Modifier.size(17.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("搜索聊天记录", style = MaterialTheme.typography.bodyMedium, color = palette.textSub)
+        }
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 2.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .clickable {
+                    vm.screen = Screen.AGENTS
+                    onPicked()
+                }
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Rounded.Groups, null, tint = palette.accent, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(9.dp))
+            Text(
+                "智能体与技能",
+                style = MaterialTheme.typography.bodyMedium,
+                color = palette.text,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                (vm.agents.size + vm.skills.size).toString(),
                 style = MaterialTheme.typography.labelSmall,
                 color = palette.textSub
             )
         }
-        LazyColumn(Modifier.weight(1f)) {
+        Row(
+            Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SectionLabel("最近对话", Modifier.weight(1f))
+            Text(list.size.toString(), style = MaterialTheme.typography.labelSmall, color = palette.textSub)
+        }
+        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)) {
             items(list, key = { it.id }) { item ->
                 val selected = item.id == conv?.id
                 Row(
                     Modifier
                         .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(if (selected) palette.accentSoft else Color.Transparent)
                         .combinedClickable(
                             onClick = {
                                 vm.selectChat(item.id)
@@ -219,35 +276,42 @@ private fun IndexRail(
                                 editingTitle = item.title
                             }
                         )
-                        .padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
-                    verticalAlignment = Alignment.Top
+                        .padding(start = 8.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
                         Modifier
-                            .padding(top = 4.dp)
-                            .width(2.dp)
-                            .height(26.dp)
-                            .background(if (selected) palette.accent else Color.Transparent)
-                    )
-                    Spacer(Modifier.width(10.dp))
+                            .size(30.dp)
+                            .background(
+                                if (selected) palette.accent else palette.surfaceAlt,
+                                RoundedCornerShape(10.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            item.title.take(1).ifBlank { "新" },
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (selected) palette.onAccent else palette.textSub
+                        )
+                    }
+                    Spacer(Modifier.width(9.dp))
                     Column(Modifier.weight(1f)) {
                         Text(
                             item.title,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = palette.text,
-                            fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
+                            color = if (selected) palette.accentText else palette.text,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        Spacer(Modifier.height(3.dp))
+                        Spacer(Modifier.height(2.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (item.branchOrder > 0) {
                                 Text(
-                                    "BRANCH ${item.branchOrder.toString().padStart(2, '0')}",
+                                    "分支 ${item.branchOrder}",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = palette.accent
                                 )
-                                Spacer(Modifier.width(7.dp))
+                                Spacer(Modifier.width(6.dp))
                             }
                             Text(
                                 Clock.ago(item.updatedAt),
@@ -258,8 +322,13 @@ private fun IndexRail(
                     }
                     Box {
                         var menu by remember { mutableStateOf(false) }
-                        IconButton(onClick = { menu = true }, modifier = Modifier.size(26.dp)) {
-                            Icon(Icons.Rounded.MoreHoriz, "更多", tint = palette.textSub, modifier = Modifier.size(15.dp))
+                        IconButton(onClick = { menu = true }, modifier = Modifier.size(28.dp)) {
+                            Icon(
+                                Icons.Rounded.MoreHoriz,
+                                "更多",
+                                tint = palette.textSub,
+                                modifier = Modifier.size(16.dp)
+                            )
                         }
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                             DropdownMenuItem(
@@ -280,20 +349,32 @@ private fun IndexRail(
                         }
                     }
                 }
-                Hairline(Modifier.padding(start = 28.dp))
             }
-            item { Spacer(Modifier.height(8.dp)) }
+            item { Spacer(Modifier.height(6.dp)) }
         }
-        Hairline()
-        RailAction("设置", "CONF", Icons.Rounded.Settings) {
-            vm.screen = Screen.SETTINGS
-            onPicked()
+        Box(Modifier.fillMaxWidth().padding(horizontal = 14.dp).height(1.dp).background(palette.border))
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 10.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .clickable {
+                    vm.screen = Screen.SETTINGS
+                    onPicked()
+                }
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Rounded.Settings, null, tint = palette.textSub, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(9.dp))
+            Text("设置", style = MaterialTheme.typography.bodyMedium, color = palette.text, modifier = Modifier.weight(1f))
+            Text("1.0.0", style = MaterialTheme.typography.labelSmall, color = palette.textSub)
         }
         Text(
-            "LOCAL ONLY / 只存本机",
+            "聊天记录只保存在这台手机",
             style = MaterialTheme.typography.labelSmall,
-            color = palette.textSub.copy(alpha = 0.7f),
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp)
+            color = palette.textSub.copy(alpha = 0.8f),
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp)
         )
     }
 
@@ -306,7 +387,7 @@ private fun IndexRail(
                     value = editingTitle,
                     onValueChange = { editingTitle = it },
                     singleLine = true,
-                    shape = RoundedCornerShape(3.dp)
+                    shape = RoundedCornerShape(14.dp)
                 )
             },
             confirmButton = {
@@ -322,7 +403,7 @@ private fun IndexRail(
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
             title = { Text("删除这个对话？") },
-            text = { Text("删掉就找不回来了。") },
+            text = { Text("删掉以后就找不回来了。") },
             confirmButton = {
                 TextButton(onClick = {
                     deleteTarget?.let { vm.deleteChat(it.id) }
@@ -330,67 +411,6 @@ private fun IndexRail(
                 }) { Text("删除", color = pal.danger) }
             },
             dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("取消") } }
-        )
-    }
-}
-
-@Composable
-private fun RailAction(
-    title: String,
-    meta: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    accent: Boolean = false,
-    onClick: () -> Unit
-) {
-    val palette = pal
-    Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 11.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (accent) {
-            Box(
-                Modifier.size(22.dp).background(palette.accent),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, null, tint = Color.White, modifier = Modifier.size(14.dp))
-            }
-        } else {
-            Icon(icon, null, tint = palette.textSub, modifier = Modifier.size(18.dp))
-        }
-        Spacer(Modifier.width(12.dp))
-        Text(
-            title,
-            style = MaterialTheme.typography.bodyMedium,
-            color = if (accent) palette.accent else palette.text,
-            modifier = Modifier.weight(1f)
-        )
-        Text(meta, style = MaterialTheme.typography.labelSmall, color = palette.textSub.copy(alpha = 0.7f))
-    }
-}
-
-@Composable
-private fun CacheLedger(vm: ChatViewModel, modifier: Modifier = Modifier) {
-    val palette = pal
-    val conv = vm.currentConversation
-    val profile = Presets.cacheProfile(vm.activeConfig)
-    val total = (conv?.hitTokens ?: 0) + (conv?.missTokens ?: 0)
-    val rate = if (total > 0) ((conv?.hitTokens ?: 0).toFloat() / total) else 0f
-    val prefix = conv?.let { Tokens.estimate(it.systemPrompt) + Tokens.estimateMessages(it.messages) } ?: 0
-    val ready = profile.minPrefix == 0 || prefix >= profile.minPrefix
-    Column(modifier.fillMaxWidth()) {
-        Text("CACHE / 缓存", style = MaterialTheme.typography.labelSmall, color = palette.textSub)
-        Spacer(Modifier.height(4.dp))
-        Text(
-            if (total > 0) "${(rate * 100).toInt()}%" else if (ready) "READY" else "WARMING",
-            style = MaterialTheme.typography.titleLarge,
-            fontSize = 19.sp,
-            color = if (total > 0 && rate > 0f) palette.ok else palette.text
-        )
-        Spacer(Modifier.height(3.dp))
-        Text(
-            if (total > 0) "READ ${Tokens.format(conv?.hitTokens ?: 0)} TOKENS" else if (profile.minPrefix > 0) "${profile.minPrefix - prefix} TOKENS TO GO" else "NO CACHE FOR THIS MODEL",
-            style = MaterialTheme.typography.labelSmall,
-            color = palette.textSub
         )
     }
 }
@@ -448,21 +468,19 @@ private fun ChatPane(
     }
     val siblings = vm.siblingsFor(conv)
     val branchIndex = siblings.indexOfFirst { it.id == conv?.id }.coerceAtLeast(0)
+    val modelChanged = conv != null && conv.messages.isNotEmpty() && conv.modelKey.isNotBlank() &&
+        config != null && conv.modelKey != config.cacheFingerprint()
 
-    Column(
-        modifier.fillMaxSize().background(palette.bg).statusBarsPadding()
-    ) {
+    Column(modifier.fillMaxSize().background(palette.bg).statusBarsPadding()) {
         Row(
-            Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 10.dp),
+            Modifier.fillMaxWidth().height(66.dp).padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (!wide) {
-                IconButton(onClick = onMenu) {
-                    Icon(Icons.Rounded.Menu, "菜单", tint = palette.text, modifier = Modifier.size(22.dp))
-                }
+                CircleButton(Icons.Rounded.Menu, "菜单", onClick = onMenu)
                 Spacer(Modifier.width(4.dp))
             } else {
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(8.dp))
             }
             Column(Modifier.weight(1f)) {
                 Text(
@@ -472,59 +490,115 @@ private fun ChatPane(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    config?.let { "${it.name} / ${it.model}" } ?: "NO MODEL / 未配置",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = palette.textSub,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Spacer(Modifier.height(3.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(5.dp).background(if (vm.isConfigured) palette.ok else palette.warn, CircleShape))
+                    Spacer(Modifier.width(5.dp))
+                    Text(
+                        config?.let { "${it.name}  ${it.model}" } ?: "还没有配置模型",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = palette.textSub,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.clickable { vm.screen = Screen.SETTINGS }
+                    )
+                }
             }
-            HeaderAction(Icons.Rounded.Search, "搜索") { vm.screen = Screen.HISTORY }
-            HeaderAction(Icons.Rounded.Add, "新对话") { vm.newChat() }
-            HeaderAction(Icons.Rounded.Settings, "设置") { vm.screen = Screen.SETTINGS }
+            CircleButton(Icons.Rounded.Search, "搜索") { vm.screen = Screen.HISTORY }
+            Spacer(Modifier.width(4.dp))
+            CircleButton(Icons.Rounded.Add, "新对话") { vm.newChat() }
+            Spacer(Modifier.width(4.dp))
+            CircleButton(Icons.Rounded.Settings, "设置") { vm.screen = Screen.SETTINGS }
         }
-        Hairline()
         if (siblings.size > 1) {
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 3.dp),
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(palette.surfaceAlt)
+                    .padding(horizontal = 6.dp, vertical = 3.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { vm.switchBranch(-1) }, modifier = Modifier.size(26.dp)) {
-                    Icon(Icons.Rounded.ChevronLeft, "上一条分支", tint = palette.textSub, modifier = Modifier.size(16.dp))
+                IconButton(onClick = { vm.switchBranch(-1) }, modifier = Modifier.size(28.dp)) {
+                    Icon(Icons.Rounded.ChevronLeft, "上一条分支", tint = palette.textSub, modifier = Modifier.size(17.dp))
                 }
                 Text(
-                    "BRANCH ${(branchIndex + 1).toString().padStart(2, '0')} / ${siblings.size.toString().padStart(2, '0')}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = palette.accent
+                    "分支 ${branchIndex + 1} / ${siblings.size}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = palette.text
                 )
-                IconButton(onClick = { vm.switchBranch(1) }, modifier = Modifier.size(26.dp)) {
-                    Icon(Icons.Rounded.ChevronRight, "下一条分支", tint = palette.textSub, modifier = Modifier.size(16.dp))
+                IconButton(onClick = { vm.switchBranch(1) }, modifier = Modifier.size(28.dp)) {
+                    Icon(Icons.Rounded.ChevronRight, "下一条分支", tint = palette.textSub, modifier = Modifier.size(17.dp))
                 }
                 Spacer(Modifier.weight(1f))
                 if ((conv?.branchCreatedAt ?: 0L) > 0L) {
                     Text(
                         Clock.full(conv?.branchCreatedAt ?: 0L),
                         style = MaterialTheme.typography.labelSmall,
-                        color = palette.textSub
+                        color = palette.textSub,
+                        modifier = Modifier.padding(end = 8.dp)
                     )
                 }
             }
-            Hairline()
+        }
+        if (modelChanged) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(palette.surfaceAlt)
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Rounded.Refresh, null, tint = palette.warn, modifier = Modifier.size(17.dp))
+                Spacer(Modifier.width(9.dp))
+                Text(
+                    "这个对话换过模型，缓存会重新计算",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = palette.text,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    "新建对话",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = palette.accent,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .clickable { vm.newChat() }
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
         }
         if (!vm.isConfigured) {
             Row(
-                Modifier.fillMaxWidth().background(palette.accentSoft).clickable { vm.screen = Screen.SETTINGS }
-                    .padding(horizontal = 18.dp, vertical = 9.dp),
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(palette.accentSoft)
+                    .clickable { vm.screen = Screen.SETTINGS }
+                    .padding(horizontal = 14.dp, vertical = 11.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(Modifier.size(4.dp).background(palette.accent))
-                Spacer(Modifier.width(8.dp))
-                Kicker("SETUP / 还差一个 API Key", palette.accentText, Modifier.weight(1f))
-                Text("去设置 →", style = MaterialTheme.typography.labelSmall, color = palette.accent)
+                Box(
+                    Modifier.size(30.dp).background(palette.surface, RoundedCornerShape(10.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Rounded.Key, null, tint = palette.accent, modifier = Modifier.size(16.dp))
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("先连接一个模型", style = MaterialTheme.typography.titleSmall, color = palette.accentText)
+                    Text(
+                        "填入 API Key 就能开始聊天",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = palette.accentText.copy(alpha = 0.8f)
+                    )
+                }
+                Text("去设置", style = MaterialTheme.typography.labelMedium, color = palette.accent)
             }
-            Hairline()
         }
         Box(Modifier.weight(1f), contentAlignment = Alignment.TopCenter) {
             if (conv == null || conv.messages.isEmpty()) {
@@ -534,13 +608,13 @@ private fun ChatPane(
                     state = listState,
                     reverseLayout = true,
                     modifier = if (wide) Modifier.fillMaxHeight().widthIn(max = 820.dp).fillMaxWidth() else Modifier.fillMaxSize(),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        start = if (wide) 32.dp else 18.dp,
-                        end = if (wide) 32.dp else 18.dp,
-                        top = 14.dp,
-                        bottom = 10.dp
+                    contentPadding = PaddingValues(
+                        start = if (wide) 28.dp else 14.dp,
+                        end = if (wide) 28.dp else 14.dp,
+                        top = 12.dp,
+                        bottom = 12.dp
                     ),
-                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     val messages = conv.messages
                     items(messages.asReversed(), key = { it.id }) { msg ->
@@ -550,6 +624,7 @@ private fun ChatPane(
                             conv = conv,
                             streaming = vm.streaming && msg.id == messages.lastOrNull()?.id,
                             searching = vm.searching,
+                            highlighted = msg.id == vm.highlightedMessageId,
                             onImageClick = { previewImage = it }
                         )
                     }
@@ -589,9 +664,16 @@ private fun ChatPane(
 }
 
 @Composable
-private fun HeaderAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
-    IconButton(onClick = onClick, modifier = Modifier.size(40.dp)) {
-        Icon(icon, label, tint = pal.textSub, modifier = Modifier.size(19.dp))
+private fun CircleButton(icon: ImageVector, label: String, onClick: () -> Unit) {
+    val palette = pal
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier
+            .size(38.dp)
+            .clip(CircleShape)
+            .background(palette.surfaceAlt)
+    ) {
+        Icon(icon, label, tint = palette.text, modifier = Modifier.size(19.dp))
     }
 }
 
@@ -601,134 +683,187 @@ private fun EmptyState(vm: ChatViewModel, modifier: Modifier = Modifier) {
     val conv = vm.currentConversation
     val agentName = conv?.agentName.orEmpty()
     val suggestions = listOf(
-        "写一段自我介绍，语气自然一点",
-        "用大白话解释一下什么是缓存",
-        "帮我列一个今天的学习计划",
-        "把这段话翻译成英文：今天天气很好"
+        "帮我写一段自我介绍",
+        "用简单的话解释一个概念",
+        "给我一个今天的学习计划",
+        "把这句话翻译成英文"
     )
     Column(
-        modifier.verticalScroll(rememberScrollState()).padding(horizontal = 22.dp, vertical = 30.dp),
+        modifier.verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 28.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(Modifier.height(if (agentName.isBlank()) 26.dp else 10.dp))
+        Spacer(Modifier.height(if (agentName.isBlank()) 16.dp else 4.dp))
         if (agentName.isNotBlank()) {
             AgentAvatar(conv?.agentAvatar.orEmpty(), agentName, 64.dp)
-            Spacer(Modifier.height(16.dp))
-        }
-        Kicker("START / 新对话", palette.accent)
-        Spacer(Modifier.height(8.dp))
-        Text(
-            if (agentName.isNotBlank()) "我是$agentName" else "今天想聊什么？",
-            style = MaterialTheme.typography.displaySmall,
-            color = palette.text,
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(12.dp))
-        Box(Modifier.width(44.dp).height(2.dp).background(palette.accent))
-        Spacer(Modifier.height(26.dp))
-        Column(Modifier.fillMaxWidth().widthIn(max = 560.dp)) {
-            suggestions.forEachIndexed { index, text ->
-                Row(
-                    Modifier.fillMaxWidth().clickable { vm.send(text) }.padding(vertical = 13.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    NumberLabel(index + 1)
-                    Text(
-                        text,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = palette.text,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Text("↗", style = MaterialTheme.typography.labelMedium, color = palette.textSub)
-                }
-                Hairline(Modifier.padding(start = 26.dp))
+            Spacer(Modifier.height(14.dp))
+            Text(
+                "和 $agentName 聊聊",
+                style = MaterialTheme.typography.headlineMedium,
+                color = palette.text,
+                textAlign = TextAlign.Center
+            )
+        } else {
+            Row(
+                Modifier
+                    .background(palette.accentSoft, RoundedCornerShape(50))
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(Modifier.size(6.dp).background(palette.accent, CircleShape))
+                Spacer(Modifier.width(6.dp))
+                Text("开始新对话", style = MaterialTheme.typography.labelMedium, color = palette.accentText)
             }
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "今天想聊点什么？",
+                style = MaterialTheme.typography.displaySmall,
+                color = palette.text,
+                textAlign = TextAlign.Center
+            )
         }
         Spacer(Modifier.height(24.dp))
+        Column(Modifier.fillMaxWidth().widthIn(max = 560.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            suggestions.chunked(2).forEach { row ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    row.forEach { text ->
+                        Column(
+                            Modifier
+                                .weight(1f)
+                                .background(palette.surface, RoundedCornerShape(16.dp))
+                                .border(1.dp, palette.border, RoundedCornerShape(16.dp))
+                                .clickable { vm.send(text) }
+                                .padding(14.dp)
+                        ) {
+                            Text(
+                                text,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = palette.text,
+                                minLines = 2
+                            )
+                            Spacer(Modifier.height(10.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("开始", style = MaterialTheme.typography.labelSmall, color = palette.accent)
+                                Spacer(Modifier.weight(1f))
+                                Text("→", style = MaterialTheme.typography.labelMedium, color = palette.accent)
+                            }
+                        }
+                    }
+                    if (row.size == 1) Spacer(Modifier.weight(1f))
+                }
+            }
+        }
+        Spacer(Modifier.height(20.dp))
         val config = vm.activeConfig
         val profile = Presets.cacheProfile(config)
         Row(
-            Modifier.fillMaxWidth().widthIn(max = 560.dp).padding(vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
+            Modifier.fillMaxWidth().widthIn(max = 560.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                "CACHE / ${profile.label}",
-                style = MaterialTheme.typography.labelSmall,
-                color = palette.textSub,
-                modifier = Modifier.weight(1f)
+            StatusPill(
+                if (config == null) "未连接模型" else config.name,
+                if (config == null) palette.warn else palette.textSub
             )
-            Text(
-                if (config == null) "NO KEY" else "READY",
-                style = MaterialTheme.typography.labelSmall,
-                color = if (config == null) palette.warn else palette.ok
+            StatusPill(
+                if (profile.mode == com.kevin233.chat.data.CacheMode.NONE) "无缓存" else "缓存 ${profile.label}",
+                if (profile.mode == com.kevin233.chat.data.CacheMode.NONE) palette.textSub else palette.ok
             )
-        }
-        Hairline(Modifier.widthIn(max = 560.dp))
-        if (agentName.isBlank()) {
-            TextButton(onClick = { vm.screen = Screen.AGENTS }) {
-                Text("智能体与技能 →", color = palette.accent, style = MaterialTheme.typography.labelMedium)
+            Spacer(Modifier.weight(1f))
+            if (agentName.isBlank()) {
+                Text(
+                    "智能体 →",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = palette.accent,
+                    modifier = Modifier.clickable { vm.screen = Screen.AGENTS }.padding(6.dp)
+                )
             }
         }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(18.dp))
     }
 }
 
 @Composable
+private fun StatusPill(text: String, color: Color) {
+    val palette = pal
+    Row(
+        Modifier
+            .background(palette.surface, RoundedCornerShape(50))
+            .border(1.dp, palette.border, RoundedCornerShape(50))
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.size(5.dp).background(color, CircleShape))
+        Spacer(Modifier.width(5.dp))
+        Text(text, style = MaterialTheme.typography.labelSmall, color = palette.textSub, maxLines = 1)
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
+@Composable
 private fun MessageItem(
     vm: ChatViewModel,
     msg: Message,
     conv: Conversation,
     streaming: Boolean,
     searching: Boolean,
+    highlighted: Boolean,
     onImageClick: (String) -> Unit
 ) {
     val palette = pal
     val clipboard = LocalClipboardManager.current
     var menu by remember { mutableStateOf(false) }
     if (msg.isUser) {
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (msg.usedSearch || msg.searchContext.isNotBlank()) {
-                    Tag("WEB")
-                    Spacer(Modifier.width(6.dp))
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (msg.usedSearch || msg.searchContext.isNotBlank()) {
+                Box(
+                    Modifier
+                        .background(palette.accentSoft, RoundedCornerShape(50))
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Text("联网", style = MaterialTheme.typography.labelSmall, color = palette.accentText)
                 }
-                Text(Clock.clock(msg.ts), style = MaterialTheme.typography.labelSmall, color = palette.textSub)
+                Spacer(Modifier.width(7.dp))
             }
-            Spacer(Modifier.height(6.dp))
+            Text("你", style = MaterialTheme.typography.labelMedium, color = palette.accent)
+            Spacer(Modifier.width(6.dp))
+            Text(Clock.clock(msg.ts), style = MaterialTheme.typography.labelSmall, color = palette.textSub)
+        }
+        Spacer(Modifier.height(5.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             Box {
-                Row(
+                Column(
                     Modifier
                         .widthIn(max = 620.dp)
-                        .height(IntrinsicSize.Min)
-                        .background(palette.surface, RoundedCornerShape(3.dp))
-                        .border(1.dp, palette.border, RoundedCornerShape(3.dp))
+                        .clip(RoundedCornerShape(18.dp, 18.dp, 5.dp, 18.dp))
+                        .background(palette.userBubble)
                         .combinedClickable(onClick = { menu = true }, onLongClick = { menu = true })
+                        .padding(horizontal = 14.dp, vertical = 11.dp)
                 ) {
-                    Box(Modifier.width(2.dp).fillMaxHeight().background(palette.accent))
-                    Column(Modifier.padding(horizontal = 14.dp, vertical = 11.dp)) {
-                        if (msg.images.isNotEmpty()) {
-                            Row(
-                                Modifier.horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                msg.images.forEach { image ->
-                                    DataImage(
-                                        dataUrl = image,
-                                        modifier = Modifier.size(116.dp),
-                                        onClick = { onImageClick(image) }
-                                    )
-                                }
+                    if (msg.images.isNotEmpty()) {
+                        Row(
+                            Modifier.horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            msg.images.forEach { image ->
+                                DataImage(
+                                    dataUrl = image,
+                                    modifier = Modifier.size(118.dp).clip(RoundedCornerShape(12.dp)),
+                                    onClick = { onImageClick(image) }
+                                )
                             }
-                            if (msg.content.isNotBlank()) Spacer(Modifier.height(8.dp))
                         }
-                        if (msg.content.isNotBlank()) {
-                            Text(
-                                msg.content,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = palette.text
-                            )
-                        }
+                        if (msg.content.isNotBlank()) Spacer(Modifier.height(8.dp))
+                    }
+                    if (msg.content.isNotBlank()) {
+                        Text(
+                            msg.content,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = palette.userBubbleText
+                        )
                     }
                 }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
@@ -755,64 +890,70 @@ private fun MessageItem(
         return
     }
 
-    Column(Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (conv.agentName.isNotBlank()) {
-                AgentAvatar(conv.agentAvatar, conv.agentName, 20.dp)
-                Spacer(Modifier.width(7.dp))
-                Kicker(conv.agentName, palette.text)
-            } else {
-                Box(Modifier.size(4.dp).background(palette.accent))
-                Spacer(Modifier.width(7.dp))
-                Kicker("AI", palette.text)
-            }
-            Spacer(Modifier.width(9.dp))
-            Text(Clock.clock(msg.ts), style = MaterialTheme.typography.labelSmall, color = palette.textSub)
-            if (msg.durationMs > 0) {
-                Spacer(Modifier.width(7.dp))
-                Text(Clock.duration(msg.durationMs), style = MaterialTheme.typography.labelSmall, color = palette.textSub)
-            }
-            Spacer(Modifier.weight(1f))
-            IconButton(onClick = { menu = true }, modifier = Modifier.size(28.dp)) {
-                Icon(Icons.Rounded.MoreHoriz, null, tint = palette.textSub, modifier = Modifier.size(16.dp))
-            }
-            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                DropdownMenuItem(
-                    text = { Text("复制回复") },
-                    onClick = {
-                        clipboard.setText(AnnotatedString(msg.content))
-                        menu = false
-                        vm.showToast("已复制")
-                    }
+    Row(Modifier.fillMaxWidth()) {
+        AssistantAvatar(conv)
+        Spacer(Modifier.width(9.dp))
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    conv.agentName.ifBlank { "AI 助手" },
+                    style = MaterialTheme.typography.labelMedium,
+                    color = palette.text
                 )
-                if (!streaming) {
-                    DropdownMenuItem(
-                        text = { Text("重新回答") },
-                        onClick = {
-                            menu = false
-                            vm.regenerate()
+                Spacer(Modifier.width(7.dp))
+                Text(Clock.clock(msg.ts), style = MaterialTheme.typography.labelSmall, color = palette.textSub)
+                if (msg.durationMs > 0) {
+                    Spacer(Modifier.width(6.dp))
+                    Text(Clock.duration(msg.durationMs), style = MaterialTheme.typography.labelSmall, color = palette.textSub)
+                }
+                Spacer(Modifier.weight(1f))
+                Box {
+                    IconButton(onClick = { menu = true }, modifier = Modifier.size(30.dp)) {
+                        Icon(Icons.Rounded.MoreHoriz, null, tint = palette.textSub, modifier = Modifier.size(17.dp))
+                    }
+                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                        DropdownMenuItem(
+                            text = { Text("复制回复") },
+                            onClick = {
+                                clipboard.setText(AnnotatedString(msg.content))
+                                menu = false
+                                vm.showToast("已复制")
+                            }
+                        )
+                        if (!streaming) {
+                            DropdownMenuItem(
+                                text = { Text("重新回答") },
+                                onClick = {
+                                    menu = false
+                                    vm.regenerate()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("从这里新建分支") },
+                                onClick = {
+                                    menu = false
+                                    vm.branchFrom(msg.id)
+                                }
+                            )
                         }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("从这里新建分支") },
-                        onClick = {
-                            menu = false
-                            vm.branchFrom(msg.id)
-                        }
-                    )
+                    }
                 }
             }
-        }
-        Spacer(Modifier.height(10.dp))
-        Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
-            Box(
+            Spacer(Modifier.height(6.dp))
+            Column(
                 Modifier
-                    .width(2.dp)
-                    .fillMaxHeight()
-                    .background(if (streaming) palette.accent else palette.border)
-            )
-            Spacer(Modifier.width(13.dp))
-            Column(Modifier.weight(1f)) {
+                    .fillMaxWidth()
+                    .background(
+                        if (highlighted) palette.accentSoft else palette.surface,
+                        RoundedCornerShape(4.dp, 18.dp, 18.dp, 18.dp)
+                    )
+                    .border(
+                        1.dp,
+                        if (highlighted) palette.accent.copy(alpha = 0.45f) else palette.border,
+                        RoundedCornerShape(4.dp, 18.dp, 18.dp, 18.dp)
+                    )
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
+            ) {
                 if (msg.reasoning.isNotBlank()) {
                     ReasoningPanel(msg.reasoning, streaming)
                     Spacer(Modifier.height(10.dp))
@@ -822,24 +963,33 @@ private fun MessageItem(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             DotsLoading()
                             Spacer(Modifier.width(9.dp))
-                            Kicker(if (searching) "SEARCHING / 正在联网" else "THINKING / 正在思考")
+                            Text(
+                                if (searching) "正在联网搜索" else "正在思考",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = palette.textSub
+                            )
                         }
                     }
                     msg.error.isNotBlank() -> {
                         Column(
-                            Modifier.fillMaxWidth().background(palette.danger.copy(alpha = 0.06f))
-                                .border(1.dp, palette.danger.copy(alpha = 0.3f), RoundedCornerShape(3.dp))
-                                .padding(14.dp)
+                            Modifier
+                                .fillMaxWidth()
+                                .background(palette.danger.copy(alpha = 0.07f), RoundedCornerShape(12.dp))
+                                .padding(12.dp)
                         ) {
-                            Kicker("ERROR", palette.danger)
-                            Spacer(Modifier.height(6.dp))
+                            Text("没有成功", style = MaterialTheme.typography.titleSmall, color = palette.danger)
+                            Spacer(Modifier.height(4.dp))
                             Text(msg.error, style = MaterialTheme.typography.bodySmall, color = palette.textSub)
                             Spacer(Modifier.height(8.dp))
                             Text(
-                                "重试 →",
+                                "再试一次",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = palette.danger,
-                                modifier = Modifier.clickable { vm.regenerate() }
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .clickable { vm.regenerate() }
+                                    .background(palette.danger.copy(alpha = 0.1f))
+                                    .padding(horizontal = 10.dp, vertical = 5.dp)
                             )
                         }
                     }
@@ -849,17 +999,17 @@ private fun MessageItem(
                         }
                     }
                 }
-                if (!streaming && (msg.cacheHit + msg.cacheMiss) > 0) {
-                    Spacer(Modifier.height(12.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        CacheBadge(msg.cacheHit, msg.cacheMiss)
-                        Spacer(Modifier.weight(1f))
-                        TinyAction(Icons.Rounded.ContentCopy, "复制") {
-                            clipboard.setText(AnnotatedString(msg.content))
-                            vm.showToast("已复制")
-                        }
-                        TinyAction(Icons.Rounded.Refresh, "重新回答") { vm.regenerate() }
+            }
+            if (!streaming && (msg.cacheHit + msg.cacheMiss) > 0) {
+                Spacer(Modifier.height(7.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CacheBadge(msg.cacheHit, msg.cacheMiss)
+                    Spacer(Modifier.weight(1f))
+                    TinyAction(Icons.Rounded.ContentCopy, "复制") {
+                        clipboard.setText(AnnotatedString(msg.content))
+                        vm.showToast("已复制")
                     }
+                    TinyAction(Icons.Rounded.Refresh, "重新回答") { vm.regenerate() }
                 }
             }
         }
@@ -867,21 +1017,24 @@ private fun MessageItem(
 }
 
 @Composable
-private fun TinyAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
-    IconButton(onClick = onClick, modifier = Modifier.size(30.dp)) {
-        Icon(icon, label, tint = pal.textSub, modifier = Modifier.size(14.dp))
+private fun AssistantAvatar(conv: Conversation) {
+    val palette = pal
+    if (conv.agentName.isNotBlank()) {
+        AgentAvatar(conv.agentAvatar, conv.agentName, 30.dp)
+    } else {
+        Box(
+            Modifier.size(30.dp).background(palette.accentSoft, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("AI", style = MaterialTheme.typography.labelSmall, color = palette.accent)
+        }
     }
 }
 
 @Composable
-private fun Tag(text: String) {
-    val palette = pal
-    Row(
-        Modifier.background(palette.accentSoft, RoundedCornerShape(2.dp))
-            .padding(horizontal = 6.dp, vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(text, style = MaterialTheme.typography.labelSmall, color = palette.accentText)
+private fun TinyAction(icon: ImageVector, label: String, onClick: () -> Unit) {
+    IconButton(onClick = onClick, modifier = Modifier.size(30.dp)) {
+        Icon(icon, label, tint = pal.textSub, modifier = Modifier.size(15.dp))
     }
 }
 
@@ -890,30 +1043,39 @@ private fun ReasoningPanel(text: String, streaming: Boolean) {
     val palette = pal
     var expanded by rememberSaveable { mutableStateOf(streaming) }
     Column(
-        Modifier.fillMaxWidth().background(palette.surfaceAlt, RoundedCornerShape(3.dp))
-            .border(1.dp, palette.border, RoundedCornerShape(3.dp))
+        Modifier
+            .fillMaxWidth()
+            .background(palette.surfaceAlt, RoundedCornerShape(12.dp))
     ) {
         Row(
-            Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(horizontal = 12.dp, vertical = 9.dp),
+            Modifier
+                .fillMaxWidth()
+                .clickable { expanded = !expanded }
+                .padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Rounded.Psychology, null, tint = palette.textSub, modifier = Modifier.size(14.dp))
-            Spacer(Modifier.width(8.dp))
-            Kicker(if (streaming) "THINKING / 正在深入" else "THINKING / 已深度思考", palette.textSub, Modifier.weight(1f))
+            Icon(Icons.Rounded.Psychology, null, tint = palette.textSub, modifier = Modifier.size(15.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(
+                if (streaming) "正在思考" else "思考过程",
+                style = MaterialTheme.typography.labelMedium,
+                color = palette.textSub,
+                modifier = Modifier.weight(1f)
+            )
             Icon(
                 if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
                 null,
                 tint = palette.textSub,
-                modifier = Modifier.size(15.dp)
+                modifier = Modifier.size(16.dp)
             )
         }
         if (expanded) {
-            Hairline()
+            Box(Modifier.fillMaxWidth().height(1.dp).background(palette.border.copy(alpha = 0.7f)))
             Text(
                 text,
                 style = MaterialTheme.typography.bodySmall,
                 color = palette.textSub,
-                modifier = Modifier.padding(12.dp)
+                modifier = Modifier.padding(11.dp)
             )
         }
     }
@@ -942,53 +1104,58 @@ private fun Composer(
     val haptic = LocalHapticFeedback.current
     val canSend = (value.isNotBlank() || images.isNotEmpty()) && !streaming && !attaching
     var reasoningMenu by remember { mutableStateOf(false) }
-    val level = when (reasoning) {
-        1 -> "LOW"
-        2 -> "MID"
-        3 -> "HIGH"
-        4 -> "XHIGH"
-        5 -> "MAX"
-        else -> "AUTO"
+    val reasoningText = when (reasoning) {
+        1 -> "低"
+        2 -> "中"
+        3 -> "高"
+        4 -> "极高"
+        5 -> "最高"
+        else -> "自动"
     }
     Column(
-        Modifier.fillMaxWidth()
+        Modifier
+            .fillMaxWidth()
             .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
-            .padding(horizontal = 14.dp, vertical = 10.dp)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
         Column(
-            Modifier.fillMaxWidth()
-                .background(palette.surface, RoundedCornerShape(4.dp))
-                .border(1.dp, palette.border, RoundedCornerShape(4.dp))
+            Modifier
+                .fillMaxWidth()
+                .background(palette.surface, RoundedCornerShape(22.dp))
+                .border(1.dp, palette.border, RoundedCornerShape(22.dp))
                 .padding(10.dp)
         ) {
             if (images.isNotEmpty() || attaching) {
                 Row(
                     Modifier.horizontalScroll(rememberScrollState()).padding(bottom = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     images.forEachIndexed { index, image ->
-                        Box(Modifier.size(58.dp)) {
+                        Box(Modifier.size(62.dp).clip(RoundedCornerShape(12.dp))) {
                             DataImage(image, Modifier.fillMaxSize())
                             Box(
-                                Modifier.align(Alignment.TopEnd).padding(2.dp).size(18.dp)
-                                    .background(palette.text, RoundedCornerShape(2.dp))
+                                Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(3.dp)
+                                    .size(19.dp)
+                                    .background(Color.Black.copy(alpha = 0.65f), CircleShape)
                                     .clickable { onRemoveImage(index) },
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Rounded.Close, "移除", tint = palette.bg, modifier = Modifier.size(11.dp))
+                                Icon(Icons.Rounded.Close, "移除", tint = Color.White, modifier = Modifier.size(12.dp))
                             }
                         }
                     }
                     if (attaching) DotsLoading()
                 }
             }
-            Box(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp)) {
+            Box(Modifier.fillMaxWidth().padding(horizontal = 5.dp, vertical = 5.dp)) {
                 if (value.isEmpty()) {
                     Text(
-                        if (configured) "写下你的问题…" else "先在设置里填入 API Key",
+                        if (configured) "发消息给 AI…" else "先在设置里填入 API Key",
                         style = MaterialTheme.typography.bodyLarge,
-                        color = palette.textSub.copy(alpha = 0.65f)
+                        color = palette.textSub.copy(alpha = 0.75f)
                     )
                 }
                 BasicTextField(
@@ -1001,12 +1168,10 @@ private fun Composer(
                     modifier = Modifier.fillMaxWidth().heightIn(min = 24.dp)
                 )
             }
-            Spacer(Modifier.height(6.dp))
-            Hairline()
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(7.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box {
-                    ToolTag(Icons.Rounded.Psychology, "思考 $level", reasoning > 0) { reasoningMenu = true }
+                    ToolPill(Icons.Rounded.Psychology, "思考 $reasoningText", reasoning > 0) { reasoningMenu = true }
                     DropdownMenu(expanded = reasoningMenu, onDismissRequest = { reasoningMenu = false }) {
                         listOf("自动" to "AUTO", "低" to "LOW", "中" to "MID", "高" to "HIGH", "极高" to "XHIGH", "最高" to "MAX")
                             .forEachIndexed { index, pair ->
@@ -1031,27 +1196,31 @@ private fun Composer(
                     }
                 }
                 Spacer(Modifier.width(6.dp))
-                ToolTag(Icons.Rounded.Public, if (webSearch) "联网 ON" else "联网", webSearch) { onToggleWebSearch() }
+                ToolPill(Icons.Rounded.Public, if (webSearch) "联网已开" else "联网", webSearch) { onToggleWebSearch() }
                 Spacer(Modifier.weight(1f))
                 if (vision) {
                     Box(
-                        Modifier.size(34.dp).border(1.dp, palette.border, RoundedCornerShape(3.dp))
+                        Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(palette.surfaceAlt)
                             .clickable(enabled = images.size < 4) { onPickImages() },
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Rounded.Image, "图片", tint = palette.textSub, modifier = Modifier.size(17.dp))
+                        Icon(Icons.Rounded.Image, "图片", tint = palette.textSub, modifier = Modifier.size(18.dp))
                     }
                     Spacer(Modifier.width(6.dp))
                 }
                 Box(
-                    Modifier.size(38.dp)
+                    Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
                         .background(
                             when {
                                 streaming -> palette.accentSoft
                                 canSend -> palette.accent
                                 else -> palette.surfaceAlt
-                            },
-                            RoundedCornerShape(3.dp)
+                            }
                         )
                         .clickable {
                             if (streaming) onStop()
@@ -1067,56 +1236,58 @@ private fun Composer(
                         if (streaming) "停止" else "发送",
                         tint = when {
                             streaming -> palette.accent
-                            canSend -> Color.White
+                            canSend -> palette.onAccent
                             else -> palette.textSub.copy(alpha = 0.5f)
                         },
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(19.dp)
                     )
                 }
             }
         }
-        Spacer(Modifier.height(7.dp))
-        Row(Modifier.fillMaxWidth().padding(horizontal = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+        Spacer(Modifier.height(5.dp))
+        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
-                "LOCAL / 只存本机",
+                "只保存在本机",
                 style = MaterialTheme.typography.labelSmall,
-                color = palette.textSub.copy(alpha = 0.6f)
+                color = palette.textSub.copy(alpha = 0.75f)
             )
             Spacer(Modifier.weight(1f))
             Text(
                 "AI 也会出错，请核对",
                 style = MaterialTheme.typography.labelSmall,
-                color = palette.textSub.copy(alpha = 0.6f)
+                color = palette.textSub.copy(alpha = 0.75f)
             )
         }
     }
 }
 
 @Composable
-private fun ToolTag(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+private fun ToolPill(
+    icon: ImageVector,
     label: String,
     active: Boolean,
     onClick: () -> Unit
 ) {
     val palette = pal
     Row(
-        Modifier.height(32.dp)
-            .background(if (active) palette.accentSoft else Color.Transparent, RoundedCornerShape(3.dp))
-            .border(
-                1.dp,
-                if (active) palette.accent.copy(alpha = 0.4f) else palette.border,
-                RoundedCornerShape(3.dp)
-            )
+        Modifier
+            .height(34.dp)
+            .clip(RoundedCornerShape(50))
+            .background(if (active) palette.accentSoft else palette.surfaceAlt)
             .clickable(onClick = onClick)
-            .padding(horizontal = 9.dp),
+            .padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, null, tint = if (active) palette.accent else palette.textSub, modifier = Modifier.size(14.dp))
-        Spacer(Modifier.width(6.dp))
+        Icon(
+            icon,
+            null,
+            tint = if (active) palette.accent else palette.textSub,
+            modifier = Modifier.size(15.dp)
+        )
+        Spacer(Modifier.width(5.dp))
         Text(
             label,
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelMedium,
             color = if (active) palette.accentText else palette.text
         )
     }
