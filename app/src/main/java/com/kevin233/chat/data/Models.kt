@@ -20,9 +20,12 @@ data class Message(
     val reasoning: String = "",
     val images: List<String> = emptyList(),
     val searchContext: String = "",
+    val timeNote: String = "",
+    val usedSearch: Boolean = false,
     val cacheHit: Int = 0,
     val cacheMiss: Int = 0,
     val outTokens: Int = 0,
+    val durationMs: Long = 0,
     val error: String = "",
     val ts: Long = System.currentTimeMillis()
 ) {
@@ -43,7 +46,10 @@ data class Conversation(
     val agentId: String = "",
     val agentName: String = "",
     val agentEmoji: String = "",
-    val agentAvatar: String = ""
+    val agentAvatar: String = "",
+    val branchGroupId: String = "",
+    val branchOrder: Int = 0,
+    val branchCreatedAt: Long = 0
 ) {
     val hitTokens: Int get() = messages.sumOf { it.cacheHit }
     val missTokens: Int get() = messages.sumOf { it.cacheMiss }
@@ -80,6 +86,7 @@ data class Settings(
     val maxTokens: Int = 8192,
     val reasoning: Int = 0,
     val themeMode: Int = 0,
+    val accent: Int = 0,
     val wallpaper: String = "none",
     val wallpaperPath: String = "",
     val glassAlpha: Float = 0.82f,

@@ -47,6 +47,32 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 
 @Composable
+fun Kicker(text: String, color: Color = pal.textSub, modifier: Modifier = Modifier) {
+    Text(
+        text = text.uppercase(),
+        style = MaterialTheme.typography.labelSmall,
+        color = color,
+        modifier = modifier
+    )
+}
+
+@Composable
+fun Hairline(modifier: Modifier = Modifier, color: Color = pal.border) {
+    Box(modifier.fillMaxWidth().height(1.dp).background(color))
+}
+
+@Composable
+fun NumberLabel(number: Int, active: Boolean = false) {
+    val palette = pal
+    Text(
+        text = number.toString().padStart(2, '0'),
+        style = MaterialTheme.typography.labelMedium,
+        color = if (active) palette.accent else palette.textSub,
+        modifier = Modifier.width(26.dp)
+    )
+}
+
+@Composable
 fun CacheBadge(hit: Int, miss: Int, compact: Boolean = false) {
     val palette = pal
     val total = hit + miss
@@ -56,24 +82,24 @@ fun CacheBadge(hit: Int, miss: Int, compact: Boolean = false) {
     val tint = if (good) palette.ok else palette.textSub
     Row(
         modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .background(if (good) palette.ok.copy(alpha = 0.10f) else palette.surfaceAlt)
-            .padding(horizontal = 10.dp, vertical = 5.dp),
+            .clip(RoundedCornerShape(3.dp))
+            .background(if (good) palette.ok.copy(alpha = 0.09f) else palette.surfaceAlt)
+            .border(1.dp, if (good) palette.ok.copy(alpha = 0.24f) else palette.border, RoundedCornerShape(3.dp))
+            .padding(horizontal = 7.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(CacheStack, null, tint = tint, modifier = Modifier.size(13.dp))
-        Spacer(Modifier.width(4.dp))
+        Box(Modifier.size(4.dp).background(tint))
+        Spacer(Modifier.width(6.dp))
         Text(
-            text = if (good) "缓存命中 ${(rate * 100).toInt()}%" else "缓存 ${(rate * 100).toInt()}%",
-            fontSize = 11.sp,
-            color = tint,
-            fontWeight = FontWeight.Medium
+            text = "CACHE ${(rate * 100).toInt()}%",
+            style = MaterialTheme.typography.labelSmall,
+            color = tint
         )
         if (!compact) {
             Text(
-                text = "，省 ${com.kevin233.chat.util.Tokens.format(hit)} token",
-                fontSize = 11.sp,
-                color = tint.copy(alpha = 0.75f)
+                text = " / ${com.kevin233.chat.util.Tokens.format(hit)}",
+                style = MaterialTheme.typography.labelSmall,
+                color = tint.copy(alpha = 0.7f)
             )
         }
     }
@@ -85,19 +111,18 @@ fun DotsLoading(color: Color = pal.textSub) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         repeat(3) { i ->
             val alpha by transition.animateFloat(
-                initialValue = 0.25f,
+                initialValue = 0.2f,
                 targetValue = 1f,
                 animationSpec = infiniteRepeatable(
-                    animation = tween(620, delayMillis = i * 150, easing = LinearOutSlowInEasing),
+                    animation = tween(560, delayMillis = i * 140, easing = LinearOutSlowInEasing),
                     repeatMode = RepeatMode.Reverse
                 ),
                 label = "dot$i"
             )
             Box(
                 Modifier
-                    .padding(horizontal = 2.5.dp)
-                    .size(6.dp)
-                    .clip(CircleShape)
+                    .padding(horizontal = 2.dp)
+                    .size(5.dp)
                     .background(color.copy(alpha = alpha))
             )
         }
@@ -115,15 +140,19 @@ fun SectionCard(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(palette.surface)
+            .background(palette.surface, RoundedCornerShape(4.dp))
+            .border(1.dp, palette.border, RoundedCornerShape(4.dp))
             .padding(horizontal = 16.dp, vertical = 14.dp)
     ) {
         if (title != null) {
-            Text(title, style = MaterialTheme.typography.titleSmall, color = palette.text)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(4.dp).background(palette.accent))
+                Spacer(Modifier.width(7.dp))
+                Text(title, style = MaterialTheme.typography.labelMedium, color = palette.text)
+            }
             if (subtitle != null) {
-                Spacer(Modifier.height(3.dp))
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = palette.textSub)
+                Spacer(Modifier.height(4.dp))
+                Text(subtitle, style = MaterialTheme.typography.labelSmall, color = palette.textSub)
             }
             Spacer(Modifier.height(10.dp))
         }
@@ -144,46 +173,33 @@ fun SettingRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
-            .padding(horizontal = 18.dp, vertical = 11.dp),
+            .padding(horizontal = 4.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            Modifier
-                .size(38.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(tint.copy(alpha = 0.10f)),
+            Modifier.size(30.dp),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, null, tint = tint, modifier = Modifier.size(20.dp))
+            Icon(icon, null, tint = tint, modifier = Modifier.size(18.dp))
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge, fontSize = 15.sp, color = palette.text)
+            Text(title, style = MaterialTheme.typography.bodyMedium, color = palette.text)
             if (subtitle != null) {
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = palette.textSub, maxLines = 2)
+                Spacer(Modifier.height(2.dp))
+                Text(subtitle, style = MaterialTheme.typography.labelSmall, color = palette.textSub)
             }
         }
         if (trailing != null) {
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(10.dp))
             trailing()
         }
     }
 }
 
 @Composable
-fun BulletDot(modifier: Modifier = Modifier, color: Color = pal.accent) {
-    Box(
-        modifier
-            .size(4.dp)
-            .clip(CircleShape)
-            .background(color)
-    )
-}
-
-@Composable
-fun AppDivider(verticalPadding: Dp = 8.dp) {
+fun AppDivider(verticalPadding: Dp = 10.dp) {
     Box(
         Modifier
             .fillMaxWidth()
@@ -202,22 +218,31 @@ fun PillChip(
     val palette = pal
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .background(if (selected) palette.accent else palette.surfaceAlt)
+            .clip(RoundedCornerShape(3.dp))
+            .background(if (selected) palette.accent else Color.Transparent)
             .border(
                 1.dp,
                 if (selected) palette.accent else palette.border,
-                RoundedCornerShape(50)
+                RoundedCornerShape(3.dp)
             )
             .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .padding(horizontal = 11.dp, vertical = 7.dp)
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.labelMedium,
             color = if (selected) Color.White else palette.text
         )
     }
+}
+
+@Composable
+fun BulletDot(modifier: Modifier = Modifier, color: Color = pal.accent) {
+    Box(
+        modifier
+            .size(4.dp)
+            .background(color)
+    )
 }
 
 @Composable
@@ -236,16 +261,16 @@ fun ToastOverlay(message: String?, onDone: () -> Unit) {
         ) {
             val palette = pal
             Surface(
-                shape = RoundedCornerShape(50),
-                color = if (palette.bg == Color.White) Color(0xFF1C1F26) else Color(0xFF2A2F3A),
+                shape = RoundedCornerShape(3.dp),
+                color = palette.text,
                 modifier = Modifier.padding(bottom = 108.dp, start = 24.dp, end = 24.dp)
             ) {
                 Text(
                     text = message ?: "",
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyMedium,
+                    color = palette.bg,
+                    style = MaterialTheme.typography.labelMedium,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 11.dp)
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
                 )
             }
         }

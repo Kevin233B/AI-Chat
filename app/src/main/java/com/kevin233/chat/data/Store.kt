@@ -106,6 +106,7 @@ class Store(context: Context) {
         o.put("maxTokens", s.maxTokens)
         o.put("reasoning", s.reasoning)
         o.put("themeMode", s.themeMode)
+        o.put("accent", s.accent)
         o.put("streaming", s.streaming)
         o.put("includeUsage", s.includeUsage)
         o.put("anthropicLongCache", s.anthropicLongCache)
@@ -151,7 +152,7 @@ class Store(context: Context) {
                         Agent(
                             id = a.optString("id").ifBlank { java.util.UUID.randomUUID().toString() },
                             name = a.optString("name"),
-                            emoji = a.optString("emoji", "🤖"),
+                            emoji = a.optString("emoji", ""),
                             tagline = a.optString("tagline"),
                             prompt = a.optString("prompt"),
                             webSearch = a.optBoolean("webSearch", false),
@@ -188,6 +189,7 @@ class Store(context: Context) {
             maxTokens = o.optInt("maxTokens", 8192),
             reasoning = o.optInt("reasoning", 0),
             themeMode = o.optInt("themeMode", 0),
+            accent = o.optInt("accent", 0),
             streaming = o.optBoolean("streaming", true),
             includeUsage = o.optBoolean("includeUsage", true),
             anthropicLongCache = o.optBoolean("anthropicLongCache", false),
@@ -393,9 +395,12 @@ class Store(context: Context) {
         m.images.forEach { imageArr.put(it) }
         put("images", imageArr)
         put("searchContext", m.searchContext)
+        put("timeNote", m.timeNote)
+        put("usedSearch", m.usedSearch)
         put("cacheHit", m.cacheHit)
         put("cacheMiss", m.cacheMiss)
         put("outTokens", m.outTokens)
+        put("durationMs", m.durationMs)
         put("error", m.error)
         put("ts", m.ts)
     }
@@ -410,9 +415,12 @@ class Store(context: Context) {
             (0 until arr.length()).mapNotNull { arr.optString(it).takeIf { v -> v.isNotBlank() } }
         },
         searchContext = o.optString("searchContext"),
+        timeNote = o.optString("timeNote"),
+        usedSearch = o.optBoolean("usedSearch", false),
         cacheHit = o.optInt("cacheHit"),
         cacheMiss = o.optInt("cacheMiss"),
         outTokens = o.optInt("outTokens"),
+        durationMs = o.optLong("durationMs"),
         error = o.optString("error"),
         ts = o.optLong("ts", System.currentTimeMillis())
     )
@@ -431,6 +439,9 @@ class Store(context: Context) {
         put("agentName", c.agentName)
         put("agentEmoji", c.agentEmoji)
         put("agentAvatar", c.agentAvatar)
+        put("branchGroupId", c.branchGroupId)
+        put("branchOrder", c.branchOrder)
+        put("branchCreatedAt", c.branchCreatedAt)
         val arr = JSONArray()
         c.messages.forEach { arr.put(msgToJson(it)) }
         put("messages", arr)
@@ -456,7 +467,10 @@ class Store(context: Context) {
             agentId = o.optString("agentId"),
             agentName = o.optString("agentName"),
             agentEmoji = o.optString("agentEmoji"),
-            agentAvatar = o.optString("agentAvatar")
+            agentAvatar = o.optString("agentAvatar"),
+            branchGroupId = o.optString("branchGroupId"),
+            branchOrder = o.optInt("branchOrder"),
+            branchCreatedAt = o.optLong("branchCreatedAt")
         )
     }
 }

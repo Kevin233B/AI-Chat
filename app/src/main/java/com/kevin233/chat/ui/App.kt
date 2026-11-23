@@ -20,7 +20,7 @@ fun App(vm: ChatViewModel) {
     val settings = vm.settings
     val wallpaperActive = settings.wallpaper != "none" &&
         (settings.wallpaper != "custom" || settings.wallpaperPath.isNotBlank())
-    AIChatTheme(settings.themeMode, settings.glassAlpha, wallpaperActive) {
+    AIChatTheme(settings.themeMode, settings.accent, settings.glassAlpha, wallpaperActive) {
         val view = LocalView.current
         val dark = darkTheme
         if (!view.isInEditMode) {

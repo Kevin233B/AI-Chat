@@ -32,6 +32,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.io.ByteArrayInputStream
 import java.io.IOException
+import java.util.UUID
 import java.util.zip.ZipInputStream
 
 enum class Screen { CHAT, HISTORY, AGENTS, SETTINGS, CONFIG_EDIT }
@@ -94,6 +95,54 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     val sortedConversations: List<Conversation>
         get() = conversations.sortedByDescending { it.updatedAt }
+
+    fun siblingsFor(conv: Conversation?): List<Conversation> {
+        if (conv == null) return emptyList()
+        val group = conv.branchGroupId
+        if (group.isBlank()) return listOf(conv)
+        val list = conversations.filter { it.branchGroupId == group || it.id == group }
+        return if (list.isEmpty()) listOf(conv) else list.sortedBy { it.branchOrder }
+    }
+
+    fun switchBranch(direction: Int) {
+        val conv = currentConversation ?: return
+        val siblings = siblingsFor(conv)
+        if (siblings.size < 2) return
+        val index = siblings.indexOfFirst { it.id == conv.id }.coerceAtLeast(0)
+        val next = Math.floorMod(index + direction, siblings.size)
+        activeId = siblings[next].id
+        screen = Screen.CHAT
+    }
+
+    fun branchFrom(messageId: String) {
+        val conv = currentConversation ?: return
+        val index = conv.messages.indexOfFirst { it.id == messageId }
+        if (index < 0) return
+        val now = System.currentTimeMillis()
+        val group = conv.branchGroupId.ifBlank { conv.id }
+        val siblings = siblingsFor(conv)
+        val maxOrder = siblings.maxOfOrNull { it.branchOrder } ?: 0
+        val oldOrder = if (conv.branchGroupId.isBlank()) 1 else conv.branchOrder
+        if (conv.branchGroupId.isBlank()) {
+            updateConversationById(conv.id) {
+                it.copy(branchGroupId = group, branchOrder = 1, branchCreatedAt = it.createdAt)
+            }
+        }
+        val branch = conv.copy(
+            id = UUID.randomUUID().toString(),
+            messages = conv.messages.take(index),
+            createdAt = now,
+            updatedAt = now,
+            branchGroupId = group,
+            branchOrder = maxOrder.coerceAtLeast(oldOrder) + 1,
+            branchCreatedAt = now,
+            started = true
+        )
+        conversations = listOf(branch) + conversations
+        activeId = branch.id
+        store.saveConversation(branch)
+        showToast("已新建分支，旧内容保留")
+    }
 
     val agents: List<Agent>
         get() = settings.customAgents
@@ -418,7 +467,9 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         val userMessage = Message(
             role = "user",
             content = clean.ifBlank { "请看看这些图片。" },
-            images = images
+            images = images,
+            timeNote = "发送时间：" + com.kevin233.chat.util.Prefix.nowLabel(),
+            usedSearch = conv.webSearch
         )
         conv = conv.copy(
             messages = conv.messages + userMessage,
@@ -515,6 +566,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             var usage: Usage? = null
             var failed: String? = null
             var searchingNow = false
+            val startedAt = System.currentTimeMillis()
             try {
                 val nativeSearch = Presets.supportsWebSearch(config)
                 if (working.webSearch && !nativeSearch && settings.searchTool) {
@@ -523,8 +575,9 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                         searchingNow = true
                         searching = true
                         val results = SearchClient.search(userMessage.content, settings.searchProvider)
-                        if (results != null) {
-                            patchMessage(working.id, userMessage.id) { it.copy(searchContext = results) }
+                        if (results.isNotEmpty()) {
+                            val context = SearchClient.searchContext(userMessage.content, results)
+                            patchMessage(working.id, userMessage.id) { it.copy(searchContext = context) }
                             persist(working.id)
                         } else {
                             showToast("搜索没成功，先按普通回答")
@@ -576,6 +629,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                         cacheHit = finalUsage?.hit ?: 0,
                         cacheMiss = finalUsage?.miss ?: 0,
                         outTokens = finalUsage?.out ?: Tokens.estimate(text.toString()),
+                        durationMs = System.currentTimeMillis() - startedAt,
                         error = failed ?: ""
                     )
                 }

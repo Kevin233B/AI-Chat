@@ -31,7 +31,9 @@ data class Usage(val hit: Int = 0, val miss: Int = 0, val out: Int = 0) {
 data class Delta(
     val text: String = "",
     val reasoning: String = "",
-    val usage: Usage? = null
+    val usage: Usage? = null,
+    val toolQuery: String = "",
+    val toolName: String = ""
 )
 
 class ChatException(message: String, val code: Int = 0) : Exception(message)
@@ -71,7 +73,9 @@ class ChatClient {
         sessionKey: String,
         useStream: Boolean,
         reasoning: Int = 0,
-        webSearch: Boolean = false
+        webSearch: Boolean = false,
+        toolSearch: Boolean = false,
+        searchProvider: String = "duckduckgo"
     ): Flow<Delta> = flow {
         canceled = false
         val profile = Presets.cacheProfile(config)
@@ -91,7 +95,8 @@ class ChatClient {
                     config, messages, system, temperature, maxTokens, geminiExplicit, useStream, level, search
                 )
                 else -> streamOpenAi(
-                    config, messages, system, temperature, maxTokens, usage, long, sessionKey, useStream, level, search
+                    config, messages, system, temperature, maxTokens, usage, long, sessionKey, useStream,
+                    level, if (toolSearch) false else search, toolSearch, searchProvider
                 )
             }
             try {
@@ -132,7 +137,9 @@ class ChatClient {
         sessionKey: String,
         useStream: Boolean,
         reasoning: Int,
-        webSearch: Boolean
+        webSearch: Boolean,
+        toolSearch: Boolean,
+        searchProvider: String
     ): Flow<Delta> = flow {
         val base = normalizeBase(config.baseUrl)
         val url = "$base/chat/completions"
@@ -185,6 +192,10 @@ class ChatClient {
         if (webSearch && baseLower.contains("dashscope")) {
             body.put("enable_search", true)
         }
+        if (toolSearch) {
+            body.put("tools", JSONArray().put(SearchClient.toolSpec(searchProvider)))
+            body.put("tool_choice", "auto")
+        }
         val arr = JSONArray()
         if (system.isNotBlank()) arr.put(JSONObject().put("role", "system").put("content", system))
         messages.forEach { m ->
@@ -229,7 +240,8 @@ class ChatClient {
             val content = msg?.let { str(it, "content") } ?: ""
             val reasoning = msg?.let { str(it, "reasoning_content") } ?: ""
             val usage = parseOpenAiUsage(obj.optJSONObject("usage"))
-            emit(Delta(content, reasoning, usage))
+            val toolQuery = parseToolCall(msg?.optJSONArray("tool_calls"))
+            emit(Delta(content, reasoning, usage, toolQuery, SearchClient.TOOL_NAME))
             return@flow
         }
         streamSse(url, body.toString(), headers) { data ->
@@ -246,8 +258,9 @@ class ChatClient {
             val delta = choice?.let { jo(it, "delta") }
             val content = delta?.let { str(it, "content") } ?: ""
             val reasoning = delta?.let { str(it, "reasoning_content") } ?: delta?.let { str(it, "reasoning") } ?: ""
-            if (content.isNotEmpty() || reasoning.isNotEmpty() || usage != null) {
-                emit(Delta(content, reasoning, usage))
+            val toolQuery = parseToolCall(delta?.optJSONArray("tool_calls"))
+            if (content.isNotEmpty() || reasoning.isNotEmpty() || usage != null || toolQuery.isNotBlank()) {
+                emit(Delta(content, reasoning, usage, toolQuery, SearchClient.TOOL_NAME))
             }
             false
         }
@@ -932,8 +945,15 @@ class ChatClient {
     }
 
     private fun apiText(message: Message): String {
-        if (message.searchContext.isBlank()) return message.content
-        return message.searchContext + "\n\n" + message.content
+        val sb = StringBuilder()
+        if (message.searchContext.isNotBlank()) {
+            sb.append(message.searchContext).append("\n\n")
+        }
+        sb.append(message.content)
+        if (message.timeNote.isNotBlank()) {
+            sb.append("\n\n").append(message.timeNote)
+        }
+        return sb.toString()
     }
 
     private fun cleanForApi(text: String): String =
@@ -972,6 +992,23 @@ class ChatClient {
     }
 
     private fun isReasoningOnlyModel(model: String): Boolean = isNewOpenAiModel(model)
+
+    private fun parseToolCall(calls: JSONArray?): String {
+        if (calls == null) return ""
+        for (i in 0 until calls.length()) {
+            val call = calls.optJSONObject(i) ?: continue
+            val function = jo(call, "function") ?: continue
+            if (str(function, "name") != SearchClient.TOOL_NAME) continue
+            val args = str(function, "arguments")
+            val query = try {
+                JSONObject(args).optString("query")
+            } catch (e: Exception) {
+                Regex("\"query\"\\s*:\\s*\"([^\"]+)").find(args)?.groupValues?.get(1).orEmpty()
+            }
+            if (query.isNotBlank()) return query
+        }
+        return ""
+    }
 
     private fun parseOpenAiUsage(usage: JSONObject?): Usage? {
         if (usage == null) return null

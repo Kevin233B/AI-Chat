@@ -5,6 +5,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -83,7 +84,6 @@ fun HistoryScreen(vm: ChatViewModel) {
     var deleteTarget by remember { mutableStateOf<Conversation?>(null) }
     var editingTitle by remember { mutableStateOf("") }
     val hits = remember(query, vm.conversations) { vm.search(query) }
-
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
     ) { uri -> uri?.let { vm.exportTo(it) } }
@@ -91,113 +91,112 @@ fun HistoryScreen(vm: ChatViewModel) {
         ActivityResultContracts.OpenDocument()
     ) { uri -> uri?.let { vm.importFrom(it) } }
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(palette.bg)
-            .statusBarsPadding()
-    ) {
+    Column(Modifier.fillMaxSize().background(palette.bg).statusBarsPadding()) {
         Row(
-            Modifier.fillMaxWidth().height(58.dp).padding(horizontal = 6.dp),
+            Modifier.fillMaxWidth().height(66.dp).padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = { vm.screen = Screen.CHAT }) {
-                Icon(Icons.Rounded.ArrowBack, "返回", tint = palette.text, modifier = Modifier.size(22.dp))
+                Icon(Icons.Rounded.ArrowBack, "返回", tint = palette.text, modifier = Modifier.size(21.dp))
             }
+            Spacer(Modifier.width(4.dp))
             Column(Modifier.weight(1f)) {
+                Kicker("ARCHIVE / 对话档案")
+                Spacer(Modifier.height(2.dp))
                 Text("历史记录", style = MaterialTheme.typography.titleLarge, color = palette.text)
             }
             IconButton(onClick = {
-                importLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream", "application/zip", "application/x-zip-compressed"))
+                importLauncher.launch(
+                    arrayOf(
+                        "application/json", "text/plain", "application/octet-stream",
+                        "application/zip", "application/x-zip-compressed"
+                    )
+                )
             }) {
-                Icon(Icons.Rounded.FileUpload, "导入", tint = palette.textSub, modifier = Modifier.size(20.dp))
+                Icon(Icons.Rounded.FileUpload, "导入", tint = palette.textSub, modifier = Modifier.size(19.dp))
             }
-            IconButton(onClick = {
-                exportLauncher.launch(vm.backupFileName())
-            }) {
-                Icon(Icons.Rounded.FileDownload, "导出", tint = palette.textSub, modifier = Modifier.size(20.dp))
+            IconButton(onClick = { exportLauncher.launch(vm.backupFileName()) }) {
+                Icon(Icons.Rounded.FileDownload, "导出", tint = palette.textSub, modifier = Modifier.size(19.dp))
             }
         }
-
-        Surface(
-            color = palette.surfaceAlt,
-            shape = RoundedCornerShape(14.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 6.dp)
+        Hairline()
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 13.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                Modifier.padding(horizontal = 12.dp, vertical = 11.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Rounded.Search, null, tint = palette.textSub, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(9.dp))
-                Box(Modifier.weight(1f)) {
-                    if (query.isEmpty()) {
-                        Text(
-                            "搜索聊天内容、关键词…",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = palette.textSub
-                        )
-                    }
-                    BasicTextField(
-                        value = query,
-                        onValueChange = { query = it },
-                        singleLine = true,
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = palette.text),
-                        cursorBrush = SolidColor(palette.accent),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        modifier = Modifier.fillMaxWidth()
+            Icon(Icons.Rounded.Search, null, tint = palette.textSub, modifier = Modifier.size(17.dp))
+            Spacer(Modifier.width(10.dp))
+            Box(Modifier.weight(1f)) {
+                if (query.isEmpty()) {
+                    Text(
+                        "搜索标题和每一句话…",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = palette.textSub.copy(alpha = 0.7f)
                     )
                 }
-                if (query.isNotEmpty()) {
-                    IconButton(onClick = { query = "" }, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Rounded.Close, "清空", tint = palette.textSub, modifier = Modifier.size(16.dp))
-                    }
+                BasicTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = palette.text),
+                    cursorBrush = SolidColor(palette.accent),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { query = "" }, modifier = Modifier.size(28.dp)) {
+                    Icon(Icons.Rounded.Close, "清空", tint = palette.textSub, modifier = Modifier.size(15.dp))
                 }
             }
         }
+        Hairline()
 
         if (hits.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
-                    Icon(
-                        if (query.isBlank()) Icons.Rounded.Search else Icons.Rounded.SearchOff,
-                        null,
-                        tint = palette.textSub.copy(alpha = 0.5f),
-                        modifier = Modifier.size(44.dp)
-                    )
-                    Spacer(Modifier.height(12.dp))
+                    Kicker(if (query.isBlank()) "EMPTY / 还没有记录" else "NO RESULT / 没有找到", palette.accent)
+                    Spacer(Modifier.height(8.dp))
                     Text(
-                        if (query.isBlank()) "还没有聊天记录" else "没找到「$query」",
-                        style = MaterialTheme.typography.titleMedium,
+                        if (query.isBlank()) "还没有对话" else "试试别的词",
+                        style = MaterialTheme.typography.headlineSmall,
                         color = palette.text
                     )
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(6.dp))
                     Text(
-                        if (query.isBlank()) "去聊两句，记录会自动存在这台手机上" else "换个词试试，标题和内容都会搜",
+                        if (query.isBlank()) "聊两句，记录会自动存在手机上" else "标题和聊天内容都会搜",
                         style = MaterialTheme.typography.bodySmall,
-                        color = palette.textSub
+                        color = palette.textSub,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                 }
             }
         } else if (query.isBlank()) {
             LazyColumn(
                 Modifier.fillMaxSize(),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 32.dp)
             ) {
+                item {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Kicker("${vm.conversations.size} CONVERSATIONS / ${vm.conversations.sumOf { it.messages.size }} MESSAGES", palette.textSub, Modifier.weight(1f))
+                        Kicker("NEWEST FIRST", palette.textSub)
+                    }
+                    Hairline()
+                }
                 var lastLabel = ""
                 hits.forEach { hit ->
-                    val label = dayLabel(hit.conversation.updatedAt)
+                    val label = Clock.groupTitle(hit.conversation.updatedAt)
                     if (label != lastLabel) {
                         lastLabel = label
                         item(key = "header-$label") {
                             Text(
                                 label,
                                 style = MaterialTheme.typography.labelMedium,
-                                color = palette.textSub,
-                                modifier = Modifier.padding(start = 4.dp, top = 14.dp, bottom = 2.dp)
+                                color = palette.accent,
+                                modifier = Modifier.padding(start = 20.dp, top = 18.dp, bottom = 4.dp)
                             )
                         }
                     }
@@ -217,16 +216,11 @@ fun HistoryScreen(vm: ChatViewModel) {
         } else {
             LazyColumn(
                 Modifier.fillMaxSize(),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 32.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 item {
-                    Text(
-                        "找到 ${hits.sumOf { it.matchCount }} 处，来自 ${hits.size} 个对话",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = palette.textSub,
-                        modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 4.dp)
-                    )
+                    Kicker("${hits.sumOf { it.matchCount }} MATCHES / ${hits.size} CONVERSATIONS", palette.textSub)
                 }
                 items(hits, key = { it.conversation.id }) { hit ->
                     SearchHitCard(
@@ -243,13 +237,13 @@ fun HistoryScreen(vm: ChatViewModel) {
     if (renameTarget != null) {
         AlertDialog(
             onDismissRequest = { renameTarget = null },
-            title = { Text("改个名字") },
+            title = { Text("重命名对话") },
             text = {
                 androidx.compose.material3.OutlinedTextField(
                     value = editingTitle,
                     onValueChange = { editingTitle = it },
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(3.dp)
                 )
             },
             confirmButton = {
@@ -288,55 +282,58 @@ private fun HistoryRow(
     val palette = pal
     var menu by remember { mutableStateOf(false) }
     val last = conv.messages.lastOrNull()
-    Surface(
-        color = palette.surface,
-        shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, palette.border),
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    Column(Modifier.fillMaxWidth()) {
         Row(
             Modifier
+                .fillMaxWidth()
                 .combinedClickable(onClick = onClick, onLongClick = { menu = true })
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 20.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.Top
         ) {
+            Column(Modifier.width(52.dp)) {
+                Text(Clock.clock(conv.updatedAt), style = MaterialTheme.typography.labelMedium, color = palette.text)
+                Spacer(Modifier.height(2.dp))
+                Text("${conv.messages.size}", style = MaterialTheme.typography.labelSmall, color = palette.textSub)
+            }
             Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (conv.branchOrder > 0) {
+                        Text(
+                            "BRANCH ${conv.branchOrder.toString().padStart(2, '0')}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = palette.accent
+                        )
+                        Spacer(Modifier.width(7.dp))
+                    }
+                    Text(
+                        conv.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = palette.text,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
                 Text(
-                    conv.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = palette.text,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(Modifier.height(3.dp))
-                Text(
-                    last?.content?.replace("\n", " ")?.take(90) ?: "还没有消息",
+                    last?.content?.replace("\n", " ")?.take(110) ?: "还没有消息",
                     style = MaterialTheme.typography.bodySmall,
                     color = palette.textSub,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(Modifier.height(5.dp))
+                Spacer(Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "${dayLabel(conv.updatedAt)} ${clockLabel(conv.updatedAt)}，${conv.messages.size} 条消息",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = palette.textSub.copy(alpha = 0.85f)
-                    )
+                    Kicker("${conv.messages.count { it.isUser }} ASK / ${conv.messages.size} MSG", palette.textSub)
                     if (conv.hitTokens > 0) {
-                        Spacer(Modifier.width(8.dp))
-                        Icon(CacheStack, null, tint = palette.ok, modifier = Modifier.size(11.dp))
-                        Text(
-                            "省 ${Tokens.format(conv.hitTokens)}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = palette.ok
-                        )
+                        Spacer(Modifier.width(10.dp))
+                        CacheBadge(conv.hitTokens, conv.missTokens, compact = true)
                     }
                 }
             }
             Box {
-                IconButton(onClick = { menu = true }, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Rounded.MoreHoriz, "更多", tint = palette.textSub, modifier = Modifier.size(18.dp))
+                IconButton(onClick = { menu = true }, modifier = Modifier.size(30.dp)) {
+                    Icon(Icons.Rounded.MoreHoriz, "更多", tint = palette.textSub, modifier = Modifier.size(16.dp))
                 }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(
@@ -358,6 +355,7 @@ private fun HistoryRow(
                 }
             }
         }
+        Hairline(Modifier.padding(start = 72.dp))
     }
 }
 
@@ -369,70 +367,59 @@ private fun SearchHitCard(
     onOpenMessage: (String) -> Unit
 ) {
     val palette = pal
-    Surface(
-        color = palette.surface,
-        shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, palette.border),
-        modifier = Modifier.fillMaxWidth()
+    Column(
+        Modifier.fillMaxWidth().background(palette.surface, RoundedCornerShape(3.dp))
+            .border(1.dp, palette.border, RoundedCornerShape(3.dp))
     ) {
-        Column {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .clickable { onOpenConversation() }
-                    .padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+        Row(
+            Modifier.fillMaxWidth().clickable { onOpenConversation() }
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Kicker("MATCH ${hit.matchCount} / 对话", palette.accent)
+                Spacer(Modifier.height(3.dp))
                 Text(
                     hit.conversation.title,
                     style = MaterialTheme.typography.titleSmall,
                     color = palette.text,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    "${hit.matchCount} 处",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = palette.accent,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(palette.accentSoft)
-                        .padding(horizontal = 7.dp, vertical = 2.dp)
+                    overflow = TextOverflow.Ellipsis
                 )
             }
-            if (hit.snippets.isEmpty()) {
-                Text(
-                    "标题命中了，点开看看",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = palette.textSub,
-                    modifier = Modifier.padding(start = 14.dp, end = 14.dp, bottom = 12.dp)
-                )
-            } else {
-                hit.snippets.forEach { snippet ->
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .clickable { onOpenMessage(snippet.messageId) }
-                            .padding(horizontal = 14.dp, vertical = 6.dp)
-                    ) {
-                        Text(
-                            if (snippet.role == "user") "你" else "AI",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (snippet.role == "user") palette.accent else palette.textSub,
-                            modifier = Modifier.width(26.dp)
-                        )
-                        Text(
-                            text = highlightMatches(snippet.text, query),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = palette.textSub,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
+            Text("↗", style = MaterialTheme.typography.labelMedium, color = palette.accent)
+        }
+        if (hit.snippets.isEmpty()) {
+            Hairline()
+            Text(
+                "标题命中，点开查看",
+                style = MaterialTheme.typography.bodySmall,
+                color = palette.textSub,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+            )
+        } else {
+            hit.snippets.forEach { snippet ->
+                Hairline(Modifier.padding(start = 16.dp))
+                Row(
+                    Modifier.fillMaxWidth().clickable { onOpenMessage(snippet.messageId) }
+                        .padding(horizontal = 16.dp, vertical = 9.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Text(
+                        if (snippet.role == "user") "YOU" else "AI",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (snippet.role == "user") palette.accent else palette.textSub,
+                        modifier = Modifier.width(34.dp).padding(top = 2.dp)
+                    )
+                    Text(
+                        text = highlightMatches(snippet.text, query),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = palette.textSub,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
-                Spacer(Modifier.height(6.dp))
             }
         }
     }

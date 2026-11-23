@@ -1,6 +1,7 @@
 package com.kevin233.chat.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,6 +43,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
@@ -52,6 +55,7 @@ sealed interface MdBlock {
     data class Code(val lang: String, val code: String) : MdBlock
     data class Heading(val level: Int, val text: String) : MdBlock
     data class Bullet(val index: Int, val text: String, val indent: Int) : MdBlock
+    data class Task(val checked: Boolean, val text: String, val indent: Int) : MdBlock
     data class Quote(val text: String) : MdBlock
     data class Image(val url: String, val alt: String) : MdBlock
     data class Para(val text: String) : MdBlock
@@ -66,6 +70,7 @@ object Markdown {
     private val headingRegex = Regex("^(#{1,4})\\s+(.*)$")
     private val ruleRegex = Regex("^\\s*([-*_])\\1{2,}\\s*$")
     private val imageRegex = Regex("^!\\[([^\\]]*)]\\(([^)\\s]+)\\)$")
+    private val taskRegex = Regex("^(\\s*)[-*+]\\s+\\[([ xX])]\\s+(.*)$")
 
     fun parse(source: String): List<MdBlock> {
         val blocks = mutableListOf<MdBlock>()
@@ -143,6 +148,13 @@ object Markdown {
                 blocks.add(MdBlock.Quote(quote.toString()))
                 continue
             }
+            val task = taskRegex.find(line)
+            if (task != null) {
+                flush()
+                blocks.add(MdBlock.Task(task.groupValues[2].isNotBlank(), task.groupValues[3].trim(), task.groupValues[1].length / 2))
+                i++
+                continue
+            }
             val bullet = bulletRegex.find(line)
             if (bullet != null) {
                 flush()
@@ -185,7 +197,7 @@ object Markdown {
     }
 
     private val inlineRegex = Regex(
-        "(`[^`\\n]+`|\\*\\*[^*\\n]+\\*\\*|__[^_\\n]+__|~~[^~\\n]+~~|\\[[^\\]]+\\]\\([^)\\s]+\\)|\\*[^*\\n]+\\*|_[^_\\n]+_)"
+        "(`[^`\\n]+`|\\*\\*[^*\\n]+\\*\\*|__[^_\\n]+__|~~[^~\\n]+~~|\\[[^\\]]+\\]\\([^)\\s]+\\)|\\*[^*\\n]+\\*|_[^_\\n]+_|https?://[^\\s<)]+)"
     )
 
     @Composable
@@ -212,6 +224,16 @@ object Markdown {
                     token.startsWith("~~") -> withStyle(
                         SpanStyle(textDecoration = TextDecoration.LineThrough, color = palette.textSub)
                     ) { append(token.substring(2, token.length - 2)) }
+                    token.startsWith("http") -> {
+                        withLink(
+                            LinkAnnotation.Url(
+                                token,
+                                TextLinkStyles(
+                                    style = SpanStyle(color = palette.accent, textDecoration = TextDecoration.Underline)
+                                )
+                            )
+                        ) { append(token) }
+                    }
                     token.startsWith("[") -> {
                         val close = token.indexOf("](")
                         val label = token.substring(1, close)
@@ -259,7 +281,7 @@ fun MarkdownText(
                     Column(
                         Modifier
                             .fillMaxWidth()
-                            .background(palette.codeBg, RoundedCornerShape(14.dp))
+                            .background(palette.codeBg, RoundedCornerShape(3.dp))
                     ) {
                         Row(
                             Modifier.fillMaxWidth().padding(start = 14.dp, end = 4.dp, top = 4.dp),
@@ -299,8 +321,16 @@ fun MarkdownText(
                 }
                 is MdBlock.Heading -> Text(
                     text = Markdown.inline(block.text, palette.text, 16f + (4 - block.level) * 1.5f, 28f),
-                    fontSize = (17 + (4 - block.level) * 1.5f).sp,
-                    lineHeight = (26 + (4 - block.level) * 2).sp,
+                    fontFamily = Serif,
+                    fontSize = when (block.level) {
+                        1 -> 24.sp
+                        2 -> 21.sp
+                        3 -> 19.sp
+                        4 -> 17.sp
+                        5 -> 16.sp
+                        else -> 15.sp
+                    },
+                    lineHeight = 30.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = palette.text
                 )
@@ -319,6 +349,27 @@ fun MarkdownText(
                         BulletDot(Modifier.padding(top = 10.dp))
                         Spacer(Modifier.width(9.dp))
                     }
+                    Text(
+                        text = Markdown.inline(block.text, palette.text),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = palette.text
+                    )
+                }
+                is MdBlock.Task -> Row(
+                    Modifier.padding(start = (block.indent * 14).dp, top = 2.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Box(
+                        Modifier.padding(top = 3.dp).size(13.dp)
+                            .background(if (block.checked) palette.accent else Color.Transparent, RoundedCornerShape(2.dp))
+                            .border(1.dp, if (block.checked) palette.accent else palette.border, RoundedCornerShape(2.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (block.checked) {
+                            Icon(Icons.Rounded.Check, null, tint = Color.White, modifier = Modifier.size(10.dp))
+                        }
+                    }
+                    Spacer(Modifier.width(9.dp))
                     Text(
                         text = Markdown.inline(block.text, palette.text),
                         style = MaterialTheme.typography.bodyLarge,
@@ -356,7 +407,7 @@ fun MarkdownText(
                 is MdBlock.Table -> Column(
                     Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(3.dp))
                         .background(palette.surfaceAlt)
                 ) {
                     block.rows.forEachIndexed { rowIndex, cells ->
