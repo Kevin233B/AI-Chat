@@ -130,7 +130,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         }
         val branch = conv.copy(
             id = UUID.randomUUID().toString(),
-            messages = conv.messages.take(index),
+            messages = conv.messages.take(index + 1),
             createdAt = now,
             updatedAt = now,
             branchGroupId = group,
